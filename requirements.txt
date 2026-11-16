@@ -1,0 +1,10 @@
+streamlit
+pymavlink
+cryptography
+scikit-learn
+pandas
+numpy
+plotly
+sqlalchemy
+pytest
+python-dotenv
