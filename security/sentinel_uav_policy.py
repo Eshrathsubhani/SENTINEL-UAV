@@ -33,8 +33,12 @@ def evaluate_mission_update(position: Position | None, now_s: float) -> Decision
     """Allow updates inside the inclusive 0–100 m square with samples ≤2 s old."""
     if position is None:
         return Decision.MISSING_POSITION
-    if not all(map(isfinite, (position.east_m, position.north_m,
-                              position.sampled_at_s, now_s))):
+    values = (position.east_m, position.north_m, position.sampled_at_s, now_s)
+    try:
+        values_are_finite = all(map(isfinite, values))
+    except (TypeError, ValueError, OverflowError):
+        return Decision.INVALID_POSITION
+    if not values_are_finite:
         return Decision.INVALID_POSITION
     age_s = now_s - position.sampled_at_s
     if age_s < 0:
@@ -54,6 +58,8 @@ SCENARIOS = (
     ("Missing", None, Decision.MISSING_POSITION),
     ("Future timestamp", Position(50, 50, 11), Decision.FUTURE_POSITION),
     ("Invalid coordinate", Position(float("nan"), 50, 9), Decision.INVALID_POSITION),
+    ("String coordinate", Position("50", 50, 9), Decision.INVALID_POSITION),
+    ("None coordinate", Position(50, None, 9), Decision.INVALID_POSITION),
 )
 
 
