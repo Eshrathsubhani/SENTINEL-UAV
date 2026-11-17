@@ -3,6 +3,7 @@
 from datetime import datetime
 import json
 from math import isfinite
+import re
 from time import monotonic
 
 MAX_RECORD_BYTES = 64 * 1024
@@ -16,10 +17,12 @@ def validate_record(record):
         "schema_version", "vehicle_id", "message_type", "captured_at", "values",
     }
     version = record["schema_version"]
-    if version == 2:
+    if version in (2, 3):
         fields.update({"record_id", "uav_identity", "system_id", "component_id", "source_boot_ms"})
     elif version != 1:
         raise ValueError("Unsupported telemetry schema version")
+    if version == 3:
+        fields.add("signing_key_id")
     if set(record) != fields:
         raise ValueError("Invalid telemetry record fields")
     for key in ("vehicle_id", "message_type"):
@@ -36,8 +39,12 @@ def validate_record(record):
             raise ValueError("Expected numeric telemetry values")
         if isinstance(value, float) and not isfinite(value):
             raise ValueError("Expected finite telemetry values")
-    if version == 2:
+    if version in (2, 3):
         _validate_live_fields(record, values)
+    if version == 3:
+        key_id = record["signing_key_id"]
+        if not isinstance(key_id, str) or re.fullmatch(r"[0-9a-f]{64}", key_id) is None:
+            raise ValueError("Invalid signing key identifier")
     return record
 
 

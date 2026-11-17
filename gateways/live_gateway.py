@@ -17,6 +17,7 @@ from uuid import uuid4
 from gateways.gcs_gateway import open_listener, receive_telemetry
 from gateways.uav_gateway import send_telemetry
 from security.credential_audit import audit_credentials
+from security.identity.gateway_registry import RegistryGuard
 from security.mavlink_signing import SignedTelemetryReceiver, SigningVerifier
 from security.tls_context import client_context, server_context
 from simulator.mavlink_adapter import normalize, open_receiver
@@ -26,7 +27,7 @@ LOGGER = logging.getLogger(__name__)
 RECORD_MAX_AGE_S = 3.0
 
 
-def live_record(message, received_at, uav_identity):
+def live_record(message, received_at, uav_identity, signing_key_id=None):
     kind = message.get_type()
     system_id = message.get_srcSystem()
     if kind == "HEARTBEAT":
@@ -37,13 +38,18 @@ def live_record(message, received_at, uav_identity):
         values.update(velocity_north_mps=message.vx / 100,
                       velocity_east_mps=message.vy / 100,
                       velocity_down_mps=message.vz / 100)
-    return {
+    record = {
         "schema_version": 2, "record_id": uuid4().hex, "uav_identity": uav_identity,
         "vehicle_id": str(system_id), "system_id": system_id,
         "component_id": message.get_srcComponent(), "message_type": kind,
         "captured_at": received_at, "source_boot_ms": getattr(message, "time_boot_ms", None),
         "values": values,
     }
+
+    if signing_key_id is not None:
+        record["schema_version"] = 3
+        record["signing_key_id"] = signing_key_id
+    return record
 
 
 def record_credential_config(args, signing_key_id=None):
@@ -65,7 +71,10 @@ def run_uav(args, context):
     timings = deque(maxlen=4096)
 
     def enqueue(message, received_at):
-        record = live_record(message, received_at, args.uav_identity)
+        record = live_record(
+            message, received_at, args.uav_identity,
+            verifier.key_id if args.registry_records else None,
+        )
         try:
             pending.put_nowait((monotonic(), record))
         except Full:
@@ -132,9 +141,12 @@ def run_uav(args, context):
 
 
 def run_gcs(args, context):
+    guard = RegistryGuard(args.identity_database) if args.identity_database is not None else None
     args.received.parent.mkdir(parents=True, exist_ok=True)
     with open_listener(args.tls_port) as listener, args.received.open("a", encoding="utf-8") as output:
         record_credential_config(args)
+        if guard is not None:
+            LOGGER.info("gcs_registry_required schema_version=3")
         LOGGER.info("gcs_listening port=%d", args.tls_port)
 
         def persist(record):
@@ -146,7 +158,7 @@ def run_gcs(args, context):
         while True:
             try:
                 receive_telemetry(listener, context, args.uav_identity, timeout=1.5,
-                                  on_record=persist, required_schema=2)
+                                  on_record=persist, required_schema=3 if guard else 2, record_guard=guard)
             except socket.timeout:
                 continue
 
@@ -171,11 +183,17 @@ def main():
     parser.add_argument("--signing-key-file", type=Path)
     parser.add_argument("--signing-state", type=Path)
     parser.add_argument("--credential-audit-db", type=Path)
+    parser.add_argument("--identity-database", type=Path)
+    parser.add_argument("--registry-records", action="store_true")
     args = parser.parse_args()
     if (args.signing_key_file is None) != (args.signing_state is None):
         parser.error("Signing requires both a raw key file and a persistent state path.")
     if args.role == "gcs" and args.signing_key_file is not None:
         parser.error("MAVLink signing is configured on the UAV gateway.")
+    if args.registry_records and (args.role != "uav" or args.signing_key_file is None):
+        parser.error("--registry-records requires UAV mode with strict signing.")
+    if args.identity_database is not None and args.role != "gcs":
+        parser.error("--identity-database is a GCS registry enforcement option.")
     if not (1 <= args.tls_port <= 65535 and 1 <= args.port <= 65535
             and 1 <= args.system_id <= 255 and args.seconds > 0 and args.heartbeat_timeout > 0):
         parser.error("Port, system ID, duration and heartbeat timeout must be in range.")
