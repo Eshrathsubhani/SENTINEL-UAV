@@ -5,7 +5,7 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 PERMISSIONS = {
     "Administrator": (
         "telemetry.read", "status.read", "command.request", "users.manage",
@@ -103,6 +103,16 @@ def initialize_database(path):
         version = connection.execute("PRAGMA user_version").fetchone()[0]
         if version == SCHEMA_VERSION:
             return
+        if version == 1:
+            connection.execute("""
+                CREATE TABLE login_attempts (
+                    username TEXT PRIMARY KEY,
+                    failures INTEGER NOT NULL CHECK(failures >= 0),
+                    window_start_epoch INTEGER NOT NULL,
+                    blocked_until_epoch INTEGER NOT NULL DEFAULT 0)
+            """)
+            connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+            return
         if version != 0:
             raise ValueError(f"Unsupported identity schema version {version}")
         tables = connection.execute(
@@ -117,6 +127,13 @@ def initialize_database(path):
             for permission in permissions:
                 connection.execute("INSERT OR IGNORE INTO permissions VALUES (?)", (permission,))
                 connection.execute("INSERT INTO role_permissions VALUES (?, ?)", (role, permission))
+        connection.execute("""
+            CREATE TABLE login_attempts (
+                username TEXT PRIMARY KEY,
+                failures INTEGER NOT NULL CHECK(failures >= 0),
+                window_start_epoch INTEGER NOT NULL,
+                blocked_until_epoch INTEGER NOT NULL DEFAULT 0)
+        """)
         connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
 

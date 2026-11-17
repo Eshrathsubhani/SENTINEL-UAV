@@ -27,7 +27,7 @@ class IdentityDatabaseTest(unittest.TestCase):
         with closing(connect_database(self.path)) as db:
             self.assertEqual(db.execute("SELECT username FROM users").fetchone()[0], "operator")
             self.assertEqual(db.execute("SELECT COUNT(*) FROM roles").fetchone()[0], 3)
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 1)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 2)
 
     def test_constraints_reject_duplicates_invalid_references_and_values(self):
         with closing(connect_database(self.path)) as db, db:
