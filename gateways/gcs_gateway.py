@@ -12,7 +12,8 @@ def open_listener(port=0):
     return socket.create_server(("127.0.0.1", port))
 
 
-def receive_telemetry(listener, context, allowed_uav_identity, *, timeout=3.0):
+def receive_telemetry(listener, context, allowed_uav_identity, *, timeout=3.0,
+                      on_record=None, required_schema=None):
     """Return the accepted record or None when the connection is rejected."""
     listener.settimeout(timeout)
     connection, _ = listener.accept()
@@ -38,9 +39,20 @@ def receive_telemetry(listener, context, allowed_uav_identity, *, timeout=3.0):
 
             try:
                 record = receive_record(secured, timeout)
+                if required_schema is not None and record["schema_version"] != required_schema:
+                    raise ValueError("Unexpected telemetry schema")
+                if record["schema_version"] == 2 and record["uav_identity"] != allowed_uav_identity:
+                    raise ValueError("Record identity does not match the authenticated UAV")
             except (OSError, ValueError, RecursionError):
                 LOGGER.warning("gateway_connection_rejected category=telemetry_record")
                 return None
+
+            if on_record is not None:
+                try:
+                    on_record(record)
+                except OSError:
+                    LOGGER.error("gateway_record_rejected category=storage")
+                    return None
 
             secured.settimeout(timeout)
             try:

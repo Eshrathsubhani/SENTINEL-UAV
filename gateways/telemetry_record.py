@@ -1,4 +1,4 @@
-"""Framing for one bounded synthetic telemetry record per connection."""
+"""Framing for one bounded telemetry record per connection."""
 
 from datetime import datetime
 import json
@@ -10,12 +10,18 @@ RECORD_ACCEPTED = b"\x06"
 
 
 def validate_record(record):
-    if type(record) is not dict or set(record) != {
+    if type(record) is not dict or type(record.get("schema_version")) is not int:
+        raise ValueError("Invalid telemetry schema version")
+    fields = {
         "schema_version", "vehicle_id", "message_type", "captured_at", "values",
-    }:
-        raise ValueError("Invalid telemetry record fields")
-    if type(record["schema_version"]) is not int or record["schema_version"] != 1:
+    }
+    version = record["schema_version"]
+    if version == 2:
+        fields.update({"record_id", "uav_identity", "system_id", "component_id", "source_boot_ms"})
+    elif version != 1:
         raise ValueError("Unsupported telemetry schema version")
+    if set(record) != fields:
+        raise ValueError("Invalid telemetry record fields")
     for key in ("vehicle_id", "message_type"):
         if not isinstance(record[key], str) or not record[key].strip():
             raise ValueError("Invalid telemetry identifier")
@@ -30,7 +36,41 @@ def validate_record(record):
             raise ValueError("Expected numeric telemetry values")
         if isinstance(value, float) and not isfinite(value):
             raise ValueError("Expected finite telemetry values")
+    if version == 2:
+        _validate_live_fields(record, values)
     return record
+
+
+def _validate_live_fields(record, values):
+    for key in ("record_id", "uav_identity"):
+        if not isinstance(record[key], str) or not record[key].strip():
+            raise ValueError("Invalid live telemetry identifier")
+    for key in ("system_id", "component_id"):
+        if type(record[key]) is not int or not 1 <= record[key] <= 255:
+            raise ValueError("Invalid MAVLink source ID")
+    if record["vehicle_id"] != str(record["system_id"]):
+        raise ValueError("Vehicle ID disagrees with system ID")
+    boot_ms = record["source_boot_ms"]
+    if boot_ms is not None and (type(boot_ms) is not int or not 0 <= boot_ms < 2**32):
+        raise ValueError("Invalid MAVLink boot timestamp")
+    if record["message_type"] == "HEARTBEAT":
+        if set(values) != {"vehicle_type", "armed"} or boot_ms is not None:
+            raise ValueError("Invalid heartbeat fields")
+        if type(values["vehicle_type"]) is not int or not 0 <= values["vehicle_type"] <= 255:
+            raise ValueError("Invalid vehicle type")
+        if type(values["armed"]) is not int or values["armed"] not in (0, 1):
+            raise ValueError("Invalid armed state")
+    elif record["message_type"] == "GLOBAL_POSITION_INT":
+        required = {
+            "latitude_deg", "longitude_deg", "altitude_msl_m", "relative_altitude_m",
+            "velocity_north_mps", "velocity_east_mps", "velocity_down_mps",
+        }
+        if boot_ms is None or not required <= values.keys() <= required | {"heading_deg"}:
+            raise ValueError("Invalid global-position fields")
+        if not (-90 <= values["latitude_deg"] <= 90 and -180 <= values["longitude_deg"] <= 180):
+            raise ValueError("Invalid position coordinates")
+    else:
+        raise ValueError("Unsupported live telemetry message type")
 
 
 def encode_record(record):

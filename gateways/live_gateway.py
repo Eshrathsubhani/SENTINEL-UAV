@@ -1,0 +1,146 @@
+"""Record live SITL telemetry and relay accepted frames over loopback mTLS."""
+
+import argparse
+import json
+import logging
+from pathlib import Path
+from queue import Empty, Full, Queue
+import socket
+from threading import Event, Thread
+from time import monotonic
+from uuid import uuid4
+
+from gateways.gcs_gateway import open_listener, receive_telemetry
+from gateways.uav_gateway import send_telemetry
+from security.tls_context import client_context, server_context
+from simulator.mavlink_adapter import normalize, open_receiver
+from simulator.telemetry_collector import collect
+
+LOGGER = logging.getLogger(__name__)
+RECORD_MAX_AGE_S = 3.0
+
+
+def live_record(message, received_at, uav_identity):
+    kind = message.get_type()
+    system_id = message.get_srcSystem()
+    if kind == "HEARTBEAT":
+        # MAV_MODE_FLAG_SAFETY_ARMED is bit 7.
+        values = {"vehicle_type": message.type, "armed": int(bool(message.base_mode & 128))}
+    else:
+        values = {key: value for key, value in normalize(message).items() if value is not None}
+        values.update(velocity_north_mps=message.vx / 100,
+                      velocity_east_mps=message.vy / 100,
+                      velocity_down_mps=message.vz / 100)
+    return {
+        "schema_version": 2, "record_id": uuid4().hex, "uav_identity": uav_identity,
+        "vehicle_id": str(system_id), "system_id": system_id,
+        "component_id": message.get_srcComponent(), "message_type": kind,
+        "captured_at": received_at, "source_boot_ms": getattr(message, "time_boot_ms", None),
+        "values": values,
+    }
+
+
+def run_uav(args, context):
+    pending = Queue(maxsize=32)
+    done = Event()
+    stats = dict(enqueued=0, queue_drops=0, stale_drops=0, unacknowledged=0, acknowledged=0)
+
+    def enqueue(message, received_at):
+        record = live_record(message, received_at, args.uav_identity)
+        try:
+            pending.put_nowait((monotonic(), record))
+        except Full:
+            stats["queue_drops"] += 1
+        else:
+            stats["enqueued"] += 1
+
+    def forward():
+        disconnected = False
+        while not done.is_set() or not pending.empty():
+            try:
+                enqueued_at, record = pending.get(timeout=0.2)
+            except Empty:
+                continue
+            if monotonic() - enqueued_at >= RECORD_MAX_AGE_S:
+                stats["stale_drops"] += 1
+                continue
+            try:
+                send_telemetry(context, args.tls_port, args.server_name, record, timeout=1.5)
+            except (OSError, ValueError) as error:
+                stats["unacknowledged"] += 1
+                if not disconnected:
+                    LOGGER.warning("forwarding_unavailable reason=%s", type(error).__name__)
+                disconnected = True
+            else:
+                if disconnected:
+                    LOGGER.info("forwarding_resumed")
+                disconnected = False
+                stats["acknowledged"] += 1
+
+    receiver = open_receiver(args.port)
+    worker = Thread(target=forward, name="telemetry-sender")
+    worker.start()
+    try:
+        return collect(receiver, args.output / uuid4().hex, args, on_live_telemetry=enqueue)
+    finally:
+        done.set()
+        worker.join()
+        receiver.close()
+        LOGGER.info("forwarding_summary %s", json.dumps(stats, sort_keys=True))
+
+
+def run_gcs(args, context):
+    args.received.parent.mkdir(parents=True, exist_ok=True)
+    with open_listener(args.tls_port) as listener, args.received.open("a", encoding="utf-8") as output:
+        LOGGER.info("gcs_listening port=%d", args.tls_port)
+
+        def persist(record):
+            output.write(json.dumps(record, allow_nan=False) + "\n")
+            output.flush()
+            LOGGER.info("record_appended type=%s id=%s",
+                        record["message_type"], record["record_id"])
+
+        while True:
+            try:
+                receive_telemetry(listener, context, args.uav_identity, timeout=1.5,
+                                  on_record=persist, required_schema=2)
+            except socket.timeout:
+                continue
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("role", choices=("uav", "gcs"))
+    for name in ("ca", "cert", "key"):
+        parser.add_argument("--" + name + "-file", required=True)
+    parser.add_argument("--uav-identity", default="urn:sentinel:uav:1")
+    parser.add_argument("--server-name", default="gcs.sentinel.test")
+    parser.add_argument("--tls-port", type=int, default=18443)
+    parser.add_argument("--port", type=int, default=14551)
+    parser.add_argument("--system-id", type=int, default=1)
+    parser.add_argument("--seconds", type=int, default=90)
+    parser.add_argument("--heartbeat-timeout", type=int, default=5)
+    parser.add_argument("--scenario", default="phase3_live_gateway")
+    parser.add_argument("--simulator-revision")
+    parser.add_argument("--output", type=Path, default=Path("datasets/sitl_generated"))
+    parser.add_argument("--received", type=Path,
+                        default=Path("datasets/sitl_generated/phase3_live_gateway/gcs_received_telemetry.jsonl"))
+    args = parser.parse_args()
+    if not (1 <= args.tls_port <= 65535 and 1 <= args.port <= 65535
+            and 1 <= args.system_id <= 255 and args.seconds > 0 and args.heartbeat_timeout > 0):
+        parser.error("Port, system ID, duration and heartbeat timeout must be in range.")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    credentials = dict(ca_file=args.ca_file, cert_file=args.cert_file, key_file=args.key_file)
+    try:
+        if args.role == "gcs":
+            return run_gcs(args, server_context(**credentials))
+        return run_uav(args, client_context(**credentials))
+    except KeyboardInterrupt:
+        return 0
+    except OSError as error:
+        LOGGER.error("gateway_start_or_run_failed reason=%s errno=%s", type(error).__name__, error.errno)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

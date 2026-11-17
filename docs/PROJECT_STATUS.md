@@ -39,3 +39,7 @@ Final Windows verification passed with **6 tests and 9 subtests**. The Python sy
 ## Next milestone
 
 **Phase 3 — Secure Communication Gateway.** Define the architecture and implementation checklist.
+
+## Phase 3.2 validation
+
+- Phase 3.2 live SITL forwarding and GCS restart recovery: PASS.

@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import ssl
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 import unittest
 
 from cryptography import x509
@@ -15,6 +16,7 @@ from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
 from gateways.gcs_gateway import open_listener, receive_telemetry
 from gateways.uav_gateway import send_telemetry
+from gateways.live_gateway import live_record
 from security.tls_context import client_context, server_context
 
 SERVER_NAME = "gcs.sentinel.test"
@@ -116,6 +118,39 @@ class GatewayMTLSTest(unittest.TestCase):
             with self.subTest(name=name):
                 received, _ = self.run_exchange(self.make_client(**options))
                 self.assertIsNone(received)
+
+    def test_live_records_are_validated_and_persisted_before_ack(self):
+        heartbeat = SimpleNamespace(
+            get_type=lambda: "HEARTBEAT", get_srcSystem=lambda: 1,
+            get_srcComponent=lambda: 1, type=2, base_mode=128,
+        )
+        position = SimpleNamespace(
+            get_type=lambda: "GLOBAL_POSITION_INT", get_srcSystem=lambda: 1,
+            get_srcComponent=lambda: 1, lat=-353632622, lon=1491652375,
+            alt=584000, relative_alt=5000, hdg=65535,
+            vx=110, vy=-220, vz=30, time_boot_ms=1234,
+        )
+        records = [live_record(message, RECORD["captured_at"], UAV_IDENTITY)
+                   for message in (heartbeat, position)]
+        self.assertEqual(records[0]["values"]["armed"], 1)
+        self.assertEqual(records[1]["values"]["velocity_east_mps"], -2.2)
+        self.assertEqual(records[1]["source_boot_ms"], 1234)
+        recorded = []
+        client = self.make_client()
+        with open_listener() as listener, ThreadPoolExecutor(max_workers=1) as executor:
+            port = listener.getsockname()[1]
+            for record in records:
+                future = executor.submit(receive_telemetry, listener, self.server, UAV_IDENTITY,
+                                         on_record=recorded.append, required_schema=2)
+                send_telemetry(client, port, SERVER_NAME, record)
+                self.assertEqual(future.result(timeout=7), record)
+            invalid = dict(records[0], uav_identity="urn:sentinel:uav:2")
+            future = executor.submit(receive_telemetry, listener, self.server, UAV_IDENTITY,
+                                     on_record=recorded.append, required_schema=2)
+            with self.assertRaises(OSError):
+                send_telemetry(client, port, SERVER_NAME, invalid)
+            self.assertIsNone(future.result(timeout=7))
+        self.assertEqual(recorded, records)
 
     def test_wrong_server_name_delivers_no_records(self):
         received, client_error = self.run_exchange(
