@@ -5,7 +5,7 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 PERMISSIONS = {
     "Administrator": (
         "telemetry.read", "status.read", "command.request", "users.manage",
@@ -95,7 +95,7 @@ def connect_database(path):
 
 
 def initialize_database(path):
-    """Create version one atomically, preserving existing data on repeated calls."""
+    """Initialize or upgrade the schema atomically while preserving records."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with closing(connect_database(path)) as connection, connection:
@@ -103,7 +103,22 @@ def initialize_database(path):
         version = connection.execute("PRAGMA user_version").fetchone()[0]
         if version == SCHEMA_VERSION:
             return
-        if version == 1:
+        if version not in (0, 1, 2):
+            raise ValueError(f"Unsupported identity schema version {version}")
+        if version == 0:
+            tables = connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+            ).fetchall()
+            if tables:
+                raise ValueError("Use an empty database or an initialized identity database")
+            for statement in SCHEMA:
+                connection.execute(statement)
+            for role, permissions in PERMISSIONS.items():
+                connection.execute("INSERT INTO roles VALUES (?)", (role,))
+                for permission in permissions:
+                    connection.execute("INSERT OR IGNORE INTO permissions VALUES (?)", (permission,))
+                    connection.execute("INSERT INTO role_permissions VALUES (?, ?)", (role, permission))
+        if version in (0, 1):
             connection.execute("""
                 CREATE TABLE login_attempts (
                     username TEXT PRIMARY KEY,
@@ -111,28 +126,13 @@ def initialize_database(path):
                     window_start_epoch INTEGER NOT NULL,
                     blocked_until_epoch INTEGER NOT NULL DEFAULT 0)
             """)
-            connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
-            return
-        if version != 0:
-            raise ValueError(f"Unsupported identity schema version {version}")
-        tables = connection.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
-        ).fetchall()
-        if tables:
-            raise ValueError("Use an empty database or an initialized identity database")
-        for statement in SCHEMA:
-            connection.execute(statement)
-        for role, permissions in PERMISSIONS.items():
-            connection.execute("INSERT INTO roles VALUES (?)", (role,))
-            for permission in permissions:
-                connection.execute("INSERT OR IGNORE INTO permissions VALUES (?)", (permission,))
-                connection.execute("INSERT INTO role_permissions VALUES (?, ?)", (role, permission))
         connection.execute("""
-            CREATE TABLE login_attempts (
-                username TEXT PRIMARY KEY,
-                failures INTEGER NOT NULL CHECK(failures >= 0),
-                window_start_epoch INTEGER NOT NULL,
-                blocked_until_epoch INTEGER NOT NULL DEFAULT 0)
+            CREATE TABLE telemetry_snapshots (
+                uav_id TEXT NOT NULL REFERENCES uavs(uav_id),
+                message_type TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                received_at_utc TEXT NOT NULL,
+                PRIMARY KEY(uav_id, message_type))
         """)
         connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 

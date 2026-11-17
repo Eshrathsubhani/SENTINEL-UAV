@@ -3,6 +3,7 @@
 import argparse
 from dataclasses import dataclass
 from getpass import getpass
+import json
 from pathlib import Path
 
 from security.authentication.auth_service import AuthService, AuthenticationError, _principal, _token_hash
@@ -30,8 +31,19 @@ class PolicyEngine:
         self.auth = AuthService(database)
 
     def authorize(self, token, uav_id, action):
+        decision, _ = self._request(token, uav_id, action)
+        return decision
+
+    def read_telemetry(self, token, uav_id):
+        decision, result = self._request(token, uav_id, "telemetry.read", read=True)
+        if not decision.allowed:
+            raise PermissionError(decision.reason)
+        return result
+
+    def _request(self, token, uav_id, action, *, read=False):
         resource = uav_id if isinstance(uav_id, str) and 1 <= len(uav_id) <= 128 else None
         action = action if isinstance(action, str) and 1 <= len(action) <= 128 else "invalid_action"
+        result = None
         with self.auth._transaction() as db:
             user = None
             try:
@@ -48,7 +60,16 @@ class PolicyEngine:
                 VALUES (?, ?, ?, ?, ?)
             """, (decision.user_id, resource, action,
                   "allow" if decision.allowed else "deny", reason))
-        return decision
+            if decision.allowed and read:
+                result = [
+                    {"received_at_utc": row["received_at_utc"],
+                     "record": json.loads(row["payload_json"])}
+                    for row in db.execute(
+                        "SELECT * FROM telemetry_snapshots WHERE uav_id = ? ORDER BY message_type",
+                        (resource,),
+                    )
+                ]
+        return decision, result
 
     @staticmethod
     def _reason(db, user, uav_id, action):
@@ -80,11 +101,18 @@ def main():
     parser.add_argument("--username", default="admin")
     parser.add_argument("--uav-id", required=True)
     parser.add_argument("--action", required=True)
+    parser.add_argument("--read-telemetry", action="store_true")
     args = parser.parse_args()
+    if args.read_telemetry and args.action != "telemetry.read":
+        parser.error("--read-telemetry requires --action telemetry.read")
     engine = PolicyEngine(args.database)
     token = None
     try:
         token = engine.auth.login(args.username, getpass("Account password: "))
+        if args.read_telemetry:
+            records = engine.read_telemetry(token, args.uav_id)
+            print(json.dumps({"uav_id": args.uav_id, "telemetry": records}, indent=2))
+            return 0
         decision = engine.authorize(token, args.uav_id, args.action)
         print(f"{'ALLOW' if decision.allowed else 'DENY'} reason={decision.reason}")
         return 0 if decision.allowed else 1

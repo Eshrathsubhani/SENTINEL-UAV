@@ -1,10 +1,12 @@
 """Enforce the registry mapping for telemetry from an authenticated UAV gateway."""
 
 from contextlib import closing
+from datetime import datetime, timezone
+import json
 import logging
 from pathlib import Path
 
-from database.identity_database import connect_database
+from database.identity_database import connect_database, initialize_database
 
 LOGGER = logging.getLogger(__name__)
 
@@ -14,6 +16,7 @@ class RegistryGuard:
         self.database = Path(database)
         if not self.database.is_file():
             raise ValueError("The identity database must already exist")
+        initialize_database(self.database)
 
     def __call__(self, record, peer_identity):
         with closing(connect_database(self.database)) as db, db:
@@ -27,6 +30,14 @@ class RegistryGuard:
                 VALUES (?, ?, 'telemetry.ingest', ?, ?)
             """, (peer_identity, uav["uav_id"] if uav else None,
                   "allow" if reason == "allowed" else "deny", reason))
+            if reason == "allowed":
+                db.execute("""
+                    INSERT INTO telemetry_snapshots VALUES (?, ?, ?, ?)
+                    ON CONFLICT(uav_id, message_type) DO UPDATE SET
+                        payload_json=excluded.payload_json,
+                        received_at_utc=excluded.received_at_utc
+                """, (uav["uav_id"], record["message_type"], json.dumps(record, allow_nan=False),
+                      datetime.now(timezone.utc).isoformat()))
         if reason != "allowed":
             LOGGER.warning("gateway_registry_denied reason=%s", reason)
             raise ValueError("Registry rejected the telemetry record")
