@@ -104,7 +104,10 @@ prototype is not tamper resistant against a process with write access to SQLite.
 
 ## Closeout
 
-Review the populated benchmark, retain its raw JSON evidence, and commit the
-administration and closeout files. Record the final commit in the project
-milestone history after the push succeeds. Phase 5 extends persistent storage,
-retention, and secure data handling.
+Phase 4 was implemented, validated, and closed in commit `923ee5c`, which was
+pushed to `origin/main`. The Windows suite passed with 73 tests and 21 subtests,
+and all nine authorization benchmark cases produced their expected decisions.
+The measured results are recorded above, with raw JSON evidence retained under
+`datasets/sitl_generated/phase4_validation/`.
+
+The next milestone is Phase 5 — Database and Secure Storage.

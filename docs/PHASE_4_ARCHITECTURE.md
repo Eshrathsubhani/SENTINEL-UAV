@@ -1,6 +1,6 @@
 # Phase 4 — Identity and Access Control
 
-Status — Design ready for implementation.
+Status — Implemented and validated. See [Phase 4 validation](PHASE_4_VALIDATION.md).
 
 Phase 3 baseline — Commit 8c357db.
 
