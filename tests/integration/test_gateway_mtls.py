@@ -16,7 +16,7 @@ from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
 from gateways.gcs_gateway import open_listener, receive_telemetry
 from gateways.uav_gateway import send_telemetry
-from gateways.live_gateway import live_record
+from gateways.live_gateway import live_record, record_credential_config
 from security.tls_context import client_context, server_context
 
 SERVER_NAME = "gcs.sentinel.test"
@@ -151,6 +151,35 @@ class GatewayMTLSTest(unittest.TestCase):
                 send_telemetry(client, port, SERVER_NAME, invalid)
             self.assertIsNone(future.result(timeout=7))
         self.assertEqual(recorded, records)
+
+    def test_rotated_ca_accepts_reissued_client_and_rejects_retired_client(self):
+        retired_ca = self.ca
+        audit_db = self.root / "rotation-audit.sqlite3"
+        audit_config = SimpleNamespace(
+            role="gcs", credential_audit_db=audit_db, ca_file=self.ca_file,
+            cert_file=self.root / "server.pem",
+        )
+        with self.assertLogs("security.credential_audit") as audit:
+            record_credential_config(audit_config)
+            self.ca = issue_certificate("Replacement test CA")
+            self.ca_file.write_bytes(self.ca[0].public_bytes(serialization.Encoding.PEM))
+            replacement = self.credentials(
+                "server-rotated", self.ca, x509.DNSName(SERVER_NAME),
+                ExtendedKeyUsageOID.SERVER_AUTH,
+            )
+            self.server = server_context(**replacement)
+            audit_config.cert_file = replacement["cert_file"]
+            record_credential_config(audit_config)
+        for kind in ("tls_certificate", "tls_trust_bundle"):
+            self.assertTrue(any(f"credential_retired role=gcs kind={kind}" in line
+                                for line in audit.output))
+            self.assertTrue(any(f"credential_rotated role=gcs kind={kind}" in line
+                                for line in audit.output))
+        received, client_error = self.run_exchange(self.make_client())
+        self.assertEqual(received, RECORD)
+        self.assertIsNone(client_error)
+        received, _ = self.run_exchange(self.make_client(issuer=retired_ca))
+        self.assertIsNone(received)
 
     def test_wrong_server_name_delivers_no_records(self):
         received, client_error = self.run_exchange(

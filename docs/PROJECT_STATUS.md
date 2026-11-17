@@ -36,10 +36,20 @@ Destination landing also passed in run `09f6a92a73744f3faf1a17b117d066f9` after 
 
 Final Windows verification passed with **6 tests and 9 subtests**. The Python syntax check also passed. The Phase 2 implementation and documentation were pushed to `origin/main` in commit `55332bb`.
 
+## Phase 3 status
+
+**Secure gateway validation complete.**
+
+| Validation | Status | Evidence |
+|---|---|---|
+| Mutual TLS and gateway recovery | PASS | Live SITL forwarding resumed after the GCS listener restarted. See [Phase 3.2](PHASE_3_2.md). |
+| Live MAVLink 2 signing | PASS | The UAV gateway verified signed telemetry, and the GCS received both `HEARTBEAT` and `GLOBAL_POSITION_INT`. All 224 queued records were acknowledged. |
+| Replay protection and freshness | PASS | Automated tests rejected stale, duplicate, and out-of-order frames. Duplicate rejection persisted after restarting the verifier with the same SQLite state. |
+| Credential replacement and audit | PASS | Tests covered signing-key and CA replacement, retired credential rejection under the updated configuration, and credential audit events. |
+| Final Windows test suite | PASS | 20 tests and 12 subtests passed in 1.21 seconds. |
+
+See [Phase 3 validation](PHASE_3_VALIDATION.md) for the signed SITL run, latency measurements, and test scope.
+
 ## Next milestone
 
-**Phase 3 — Secure Communication Gateway.** Define the architecture and implementation checklist.
-
-## Phase 3.2 validation
-
-- Phase 3.2 live SITL forwarding and GCS restart recovery: PASS.
+**Phase 4 — Zero-Trust Identity and Access Control.**

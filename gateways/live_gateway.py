@@ -1,17 +1,23 @@
 """Record live SITL telemetry and relay accepted frames over loopback mTLS."""
 
 import argparse
+from collections import deque
+from hashlib import sha256
 import json
 import logging
+from math import ceil
 from pathlib import Path
 from queue import Empty, Full, Queue
 import socket
+import sqlite3
 from threading import Event, Thread
 from time import monotonic
 from uuid import uuid4
 
 from gateways.gcs_gateway import open_listener, receive_telemetry
 from gateways.uav_gateway import send_telemetry
+from security.credential_audit import audit_credentials
+from security.mavlink_signing import SignedTelemetryReceiver, SigningVerifier
 from security.tls_context import client_context, server_context
 from simulator.mavlink_adapter import normalize, open_receiver
 from simulator.telemetry_collector import collect
@@ -40,10 +46,23 @@ def live_record(message, received_at, uav_identity):
     }
 
 
+def record_credential_config(args, signing_key_id=None):
+    if args.credential_audit_db is None:
+        return
+    credentials = {
+        kind: sha256(Path(path).read_bytes()).hexdigest()
+        for kind, path in (("tls_certificate", args.cert_file), ("tls_trust_bundle", args.ca_file))
+    }
+    if signing_key_id is not None:
+        credentials["mavlink_signing_key"] = signing_key_id
+    audit_credentials(args.credential_audit_db, args.role, credentials)
+
+
 def run_uav(args, context):
     pending = Queue(maxsize=32)
     done = Event()
     stats = dict(enqueued=0, queue_drops=0, stale_drops=0, unacknowledged=0, acknowledged=0)
+    timings = deque(maxlen=4096)
 
     def enqueue(message, received_at):
         record = live_record(message, received_at, args.uav_identity)
@@ -65,7 +84,7 @@ def run_uav(args, context):
                 stats["stale_drops"] += 1
                 continue
             try:
-                send_telemetry(context, args.tls_port, args.server_name, record, timeout=1.5)
+                timing = send_telemetry(context, args.tls_port, args.server_name, record, timeout=1.5)
             except (OSError, ValueError) as error:
                 stats["unacknowledged"] += 1
                 if not disconnected:
@@ -76,8 +95,24 @@ def run_uav(args, context):
                     LOGGER.info("forwarding_resumed")
                 disconnected = False
                 stats["acknowledged"] += 1
+                timings.append(timing)
 
     receiver = open_receiver(args.port)
+    if args.signing_key_file is not None:
+        try:
+            verifier = SigningVerifier(args.signing_key_file.read_bytes(), args.signing_state)
+        except (OSError, ValueError, sqlite3.Error):
+            receiver.close()
+            raise
+        receiver = SignedTelemetryReceiver(receiver, verifier, args.system_id)
+        LOGGER.info("mavlink_signing_required system_id=%d", args.system_id)
+    else:
+        LOGGER.info("mavlink_signing_disabled")
+    try:
+        record_credential_config(args, verifier.key_id if args.signing_key_file else None)
+    except (OSError, sqlite3.Error):
+        receiver.close()
+        raise
     worker = Thread(target=forward, name="telemetry-sender")
     worker.start()
     try:
@@ -87,11 +122,19 @@ def run_uav(args, context):
         worker.join()
         receiver.close()
         LOGGER.info("forwarding_summary %s", json.dumps(stats, sort_keys=True))
+        if timings:
+            for label, samples in zip(("tls_handshake", "record_ack_round_trip"), zip(*timings)):
+                ordered = sorted(samples)
+                p50, p95 = (ordered[ceil(len(ordered) * fraction) - 1]
+                            for fraction in (0.50, 0.95))
+                LOGGER.info("forwarding_latency metric=%s samples=%d p50_ms=%.3f p95_ms=%.3f",
+                            label, len(ordered), p50, p95)
 
 
 def run_gcs(args, context):
     args.received.parent.mkdir(parents=True, exist_ok=True)
     with open_listener(args.tls_port) as listener, args.received.open("a", encoding="utf-8") as output:
+        record_credential_config(args)
         LOGGER.info("gcs_listening port=%d", args.tls_port)
 
         def persist(record):
@@ -125,7 +168,14 @@ def main():
     parser.add_argument("--output", type=Path, default=Path("datasets/sitl_generated"))
     parser.add_argument("--received", type=Path,
                         default=Path("datasets/sitl_generated/phase3_live_gateway/gcs_received_telemetry.jsonl"))
+    parser.add_argument("--signing-key-file", type=Path)
+    parser.add_argument("--signing-state", type=Path)
+    parser.add_argument("--credential-audit-db", type=Path)
     args = parser.parse_args()
+    if (args.signing_key_file is None) != (args.signing_state is None):
+        parser.error("Signing requires both a raw key file and a persistent state path.")
+    if args.role == "gcs" and args.signing_key_file is not None:
+        parser.error("MAVLink signing is configured on the UAV gateway.")
     if not (1 <= args.tls_port <= 65535 and 1 <= args.port <= 65535
             and 1 <= args.system_id <= 255 and args.seconds > 0 and args.heartbeat_timeout > 0):
         parser.error("Port, system ID, duration and heartbeat timeout must be in range.")
@@ -137,8 +187,9 @@ def main():
         return run_uav(args, client_context(**credentials))
     except KeyboardInterrupt:
         return 0
-    except OSError as error:
-        LOGGER.error("gateway_start_or_run_failed reason=%s errno=%s", type(error).__name__, error.errno)
+    except (OSError, ValueError, sqlite3.Error) as error:
+        LOGGER.error("gateway_start_or_run_failed reason=%s errno=%s",
+                     type(error).__name__, getattr(error, "errno", None))
         return 1
 
 
