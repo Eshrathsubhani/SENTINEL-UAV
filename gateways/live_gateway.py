@@ -14,6 +14,7 @@ from threading import Event, Thread
 from time import monotonic
 from uuid import uuid4
 
+from backend.commands.status_request import MAVLinkStatusSender, StatusDispatcher
 from gateways.gcs_gateway import open_listener, receive_telemetry
 from gateways.uav_gateway import send_telemetry
 from security.credential_audit import audit_credentials
@@ -70,7 +71,11 @@ def run_uav(args, context):
     stats = dict(enqueued=0, queue_drops=0, stale_drops=0, unacknowledged=0, acknowledged=0)
     timings = deque(maxlen=4096)
 
+    dispatcher = None
+
     def enqueue(message, received_at):
+        if dispatcher is not None and message.get_type() == "HEARTBEAT":
+            dispatcher.dispatch_one()
         record = live_record(
             message, received_at, args.uav_identity,
             verifier.key_id if args.registry_records else None,
@@ -107,6 +112,7 @@ def run_uav(args, context):
                 timings.append(timing)
 
     receiver = open_receiver(args.port)
+    connection = receiver
     if args.signing_key_file is not None:
         try:
             verifier = SigningVerifier(args.signing_key_file.read_bytes(), args.signing_state)
@@ -119,6 +125,12 @@ def run_uav(args, context):
         LOGGER.info("mavlink_signing_disabled")
     try:
         record_credential_config(args, verifier.key_id if args.signing_key_file else None)
+        if args.command_database is not None:
+            sender = MAVLinkStatusSender(connection, verifier.key)
+            dispatcher = StatusDispatcher(
+                args.command_database, system_id=args.system_id, identity=args.uav_identity,
+                signing_key_id=verifier.key_id, sender=sender,
+            )
     except (OSError, sqlite3.Error):
         receiver.close()
         raise
@@ -185,6 +197,7 @@ def main():
     parser.add_argument("--credential-audit-db", type=Path)
     parser.add_argument("--identity-database", type=Path)
     parser.add_argument("--registry-records", action="store_true")
+    parser.add_argument("--command-database", type=Path)
     args = parser.parse_args()
     if (args.signing_key_file is None) != (args.signing_state is None):
         parser.error("Signing requires both a raw key file and a persistent state path.")
@@ -192,6 +205,9 @@ def main():
         parser.error("MAVLink signing is configured on the UAV gateway.")
     if args.registry_records and (args.role != "uav" or args.signing_key_file is None):
         parser.error("--registry-records requires UAV mode with strict signing.")
+    if args.command_database is not None and not (
+            args.role == "uav" and args.registry_records and args.signing_key_file is not None):
+        parser.error("--command-database requires registry records and strict signing in UAV mode.")
     if args.identity_database is not None and args.role != "gcs":
         parser.error("--identity-database is a GCS registry enforcement option.")
     if not (1 <= args.tls_port <= 65535 and 1 <= args.port <= 65535

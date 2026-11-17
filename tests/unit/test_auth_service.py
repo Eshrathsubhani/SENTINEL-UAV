@@ -29,7 +29,7 @@ class AuthServiceTest(unittest.TestCase):
             token_hash = db.execute("SELECT token_hash FROM sessions").fetchone()[0]
             self.assertNotEqual(token_hash, self.admin)
             self.assertNotIn(self.admin, self.path.read_bytes().decode("latin1"))
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 3)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 4)
 
     def test_login_for_all_roles_and_administrator_creation_boundary(self):
         for role in ("Operator", "Viewer"):
@@ -87,6 +87,7 @@ class AuthServiceTest(unittest.TestCase):
 
     def test_schema_one_upgrade_preserves_existing_users(self):
         with closing(connect_database(self.path)) as db, db:
+            db.execute("DROP TABLE command_requests")
             db.execute("DROP TABLE login_attempts")
             db.execute("DROP TABLE telemetry_snapshots")
             db.execute("PRAGMA user_version = 1")

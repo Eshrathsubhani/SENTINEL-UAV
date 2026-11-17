@@ -13,6 +13,7 @@ ACTIONS = {
     "telemetry.read": "telemetry.read",
     "status.read": "status.read",
     "command.rtl": "command.request",
+    "command.status": "command.request",
     "mission.update": "command.request",
     "mission.configure": "policies.manage",
 }

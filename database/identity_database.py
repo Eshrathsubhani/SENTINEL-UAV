@@ -5,7 +5,7 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 PERMISSIONS = {
     "Administrator": (
         "telemetry.read", "status.read", "command.request", "users.manage",
@@ -103,7 +103,7 @@ def initialize_database(path):
         version = connection.execute("PRAGMA user_version").fetchone()[0]
         if version == SCHEMA_VERSION:
             return
-        if version not in (0, 1, 2):
+        if version not in (0, 1, 2, 3):
             raise ValueError(f"Unsupported identity schema version {version}")
         if version == 0:
             tables = connection.execute(
@@ -126,14 +126,28 @@ def initialize_database(path):
                     window_start_epoch INTEGER NOT NULL,
                     blocked_until_epoch INTEGER NOT NULL DEFAULT 0)
             """)
+        if version in (0, 1, 2):
+            connection.execute("""
+                CREATE TABLE telemetry_snapshots (
+                    uav_id TEXT NOT NULL REFERENCES uavs(uav_id),
+                    message_type TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    received_at_utc TEXT NOT NULL,
+                    PRIMARY KEY(uav_id, message_type))
+            """)
         connection.execute("""
-            CREATE TABLE telemetry_snapshots (
+            CREATE TABLE command_requests (
+                request_id TEXT PRIMARY KEY NOT NULL,
+                token_hash TEXT NOT NULL REFERENCES sessions(token_hash),
                 uav_id TEXT NOT NULL REFERENCES uavs(uav_id),
-                message_type TEXT NOT NULL,
-                payload_json TEXT NOT NULL,
-                received_at_utc TEXT NOT NULL,
-                PRIMARY KEY(uav_id, message_type))
+                action TEXT NOT NULL CHECK(action = 'command.status'),
+                created_at_epoch INTEGER NOT NULL,
+                expires_at_epoch INTEGER NOT NULL,
+                status TEXT NOT NULL CHECK(status IN
+                    ('queued', 'dispatching', 'sent', 'denied', 'failed')),
+                reason TEXT NOT NULL)
         """)
+        connection.execute("CREATE INDEX pending_commands ON command_requests(status, uav_id)")
         connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
 
