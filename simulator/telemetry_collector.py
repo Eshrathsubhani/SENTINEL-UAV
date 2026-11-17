@@ -22,7 +22,13 @@ def utc_now():
     return datetime.now(timezone.utc).isoformat()
 
 
-def collect(receiver, destination, args):
+def collect(receiver, destination, args, *, on_live_telemetry=None):
+    """Record one SITL run and optionally publish accepted live telemetry.
+
+    The callback receives a parsed message and its CSV receive timestamp.
+    It runs on the collection thread and should enqueue records without
+    performing blocking network operations.
+    """
     started = monotonic()
     destination.mkdir(parents=True, exist_ok=False)
     run = {
@@ -75,15 +81,18 @@ def collect(receiver, destination, args):
                     last_heartbeat = now
                 if not connected:
                     continue
+                received_at_utc = utc_now()
                 writer.writerow({
                     "run_id": run["run_id"], "scenario": args.scenario,
-                    "received_at_utc": utc_now(), "elapsed_s": now - started,
+                    "received_at_utc": received_at_utc, "elapsed_s": now - started,
                     "vehicle_id": args.system_id, "component_id": message.get_srcComponent(),
                     "message_type": kind, "message_size_bytes": len(message.get_msgbuf()),
                     "sample_boot_ms": getattr(message, "time_boot_ms", None),
                     **normalize(message),
                 })
                 run["message_counts"][kind] = run["message_counts"].get(kind, 0) + 1
+                if on_live_telemetry is not None and kind in {"HEARTBEAT", "GLOBAL_POSITION_INT"}:
+                    on_live_telemetry(message, received_at_utc)
                 if now - last_flush >= 1:
                     output.flush()
                     last_flush = now

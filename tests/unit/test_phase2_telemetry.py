@@ -54,6 +54,39 @@ class TelemetryTest(unittest.TestCase):
             metadata = json.loads((destination / "run.json").read_text())
         self.assertEqual(metadata["stop_reason"], "heartbeat_never_received")
 
+    def test_live_callback_receives_only_accepted_frames_with_csv_timestamps(self):
+        heartbeat = Message(kind="HEARTBEAT", type=2, autopilot=3)
+        position = Message(kind="GLOBAL_POSITION_INT", lat=125000000, lon=-725000000,
+                           alt=202500, relative_alt=2500, hdg=65535)
+        wrong_system = Message(kind="HEARTBEAT", type=2, autopilot=3, system=2)
+        hud = Message(kind="VFR_HUD", groundspeed=2.5, heading=45)
+        messages = iter([position, wrong_system, heartbeat, hud, position])
+        clock = 0
+        accepted = []
+
+        def receive(**kwargs):
+            nonlocal clock
+            clock += 1
+            return next(messages)
+
+        def publish(message, received_at):
+            accepted.append((message.get_type(), received_at))
+
+        args = SimpleNamespace(seconds=5, scenario="unit", port=14551, system_id=1,
+                               heartbeat_timeout=5, simulator_revision=None)
+        with TemporaryDirectory() as temp:
+            destination = Path(temp) / "callback-run"
+            with patch("simulator.telemetry_collector.monotonic", lambda: clock):
+                result = collect(SimpleNamespace(recv_match=receive), destination, args,
+                                 on_live_telemetry=publish)
+            with (destination / "telemetry.csv").open(newline="") as source:
+                rows = list(csv.DictReader(source))
+        self.assertEqual(result, 0)
+        self.assertEqual([row["message_type"] for row in rows],
+                         ["HEARTBEAT", "VFR_HUD", "GLOBAL_POSITION_INT"])
+        self.assertEqual(accepted, [(rows[i]["message_type"], rows[i]["received_at_utc"])
+                                    for i in (0, 2)])
+
     def test_recording_after_heartbeat_and_recovery(self):
         heartbeat = Message(kind="HEARTBEAT", type=2, autopilot=3)
         wrong_system = Message(kind="HEARTBEAT", type=2, autopilot=3, system=2)
