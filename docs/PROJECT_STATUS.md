@@ -50,6 +50,16 @@ Final Windows verification passed with **6 tests and 9 subtests**. The Python sy
 
 See [Phase 3 validation](PHASE_3_VALIDATION.md) for the signed SITL run, latency measurements, and test scope.
 
+## Phase 4 status
+
+**Identity and access-control validation complete.**
+
+Implemented authentication, sessions, UAV registration, role and assignment checks, gateway enforcement, protected telemetry, mission geolocation checks, authorized status dispatch, administration, and audit access.
+
+Windows verification passed with 73 tests and 21 subtests. Manual Operator and Viewer checks passed. The local authorization benchmark passed all nine cases with 100 measured decisions per case.
+
+See [Phase 4 validation](PHASE_4_VALIDATION.md) for evidence, latency measurements, and scope.
+
 ## Next milestone
 
-**Phase 4 — Zero-Trust Identity and Access Control.**
+**Phase 5 — Database and Secure Storage.**

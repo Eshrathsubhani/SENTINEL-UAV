@@ -77,7 +77,7 @@ class PolicyEngineTest(unittest.TestCase):
         self.engine.authorize(token, self.uav, "status.read")
         PolicyEngine(self.path).authorize(None, self.uav, "status.read")
         with closing(connect_database(self.path)) as db:
-            rows = db.execute("SELECT decision, reason FROM authorization_events ORDER BY event_id").fetchall()
+            rows = db.execute("SELECT decision, reason FROM authorization_events WHERE action='status.read' ORDER BY event_id").fetchall()
             self.assertEqual([tuple(row) for row in rows],
                              [("allow", "allowed"), ("deny", "invalid_session")])
             self.assertNotIn(token, str([tuple(row) for row in db.execute(

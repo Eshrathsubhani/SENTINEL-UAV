@@ -77,6 +77,27 @@ class AuthService:
             db.execute("BEGIN IMMEDIATE")
             yield db
 
+    @contextmanager
+    def administrator_transaction(self, token, action, target_id=None):
+        reason = "allowed"
+        actor = None
+        with self._transaction() as db:
+            try:
+                actor = _principal(db, _token_hash(token), int(self.clock()))
+            except AuthenticationError:
+                reason = "invalid_session"
+            if actor is not None and actor["role_name"] != "Administrator":
+                reason = "role_denied"
+            db.execute("""
+                INSERT INTO authorization_events (actor_id, target_id, action, decision, reason)
+                VALUES (?, ?, ?, ?, ?)
+            """, (actor["user_id"] if actor else None, target_id, action,
+                  "allow" if reason == "allowed" else "deny", reason))
+            if reason == "allowed":
+                yield db, actor
+        if reason != "allowed":
+            raise AuthenticationError(reason)
+
     def bootstrap_admin(self, username, password):
         username = _username(username)
         password_hash = _password_hash(password)
@@ -165,12 +186,9 @@ class AuthService:
         password_hash = _password_hash(password)
         if role not in ("Administrator", "Operator", "Viewer"):
             raise ValueError("Unknown role")
-        token_hash = _token_hash(administrator_token)
         user_id = uuid4().hex
-        with self._transaction() as db:
-            administrator = _principal(db, token_hash, int(self.clock()))
-            if administrator["role_name"] != "Administrator":
-                raise AuthenticationError("Administrator permission required")
+        with self.administrator_transaction(
+                administrator_token, "user.create", user_id) as (db, administrator):
             db.execute("""
                 INSERT INTO users (user_id, username, password_hash, role_name)
                 VALUES (?, ?, ?, ?)
@@ -181,12 +199,9 @@ class AuthService:
     def set_user_status(self, administrator_token, user_id, status):
         if status not in ("active", "suspended", "revoked"):
             raise ValueError("Unknown account status")
-        token_hash = _token_hash(administrator_token)
         now = int(self.clock())
-        with self._transaction() as db:
-            administrator = _principal(db, token_hash, now)
-            if administrator["role_name"] != "Administrator":
-                raise AuthenticationError("Administrator permission required")
+        with self.administrator_transaction(
+                administrator_token, "user.set_status", user_id) as (db, administrator):
             target = db.execute("SELECT status FROM users WHERE user_id = ?", (user_id,)).fetchone()
             if target is None:
                 raise ValueError("Unknown user")

@@ -8,7 +8,7 @@ import re
 import sqlite3
 from uuid import uuid4
 
-from security.authentication.auth_service import AuthService, AuthenticationError, _event, _principal, _token_hash
+from security.authentication.auth_service import AuthService, _event
 
 
 def _signing_id(value):
@@ -25,11 +25,7 @@ class UAVRegistry:
 
     @contextmanager
     def _administrator(self, token):
-        token_hash = _token_hash(token)
-        with self.auth._transaction() as db:
-            actor = _principal(db, token_hash, int(self.auth.clock()))
-            if actor["role_name"] != "Administrator":
-                raise AuthenticationError("Administrator permission required")
+        with self.auth.administrator_transaction(token, "uav.manage") as (db, actor):
             yield db, actor["user_id"]
 
     def register(self, token, name, system_id, certificate_identity, signing_key_id, description=""):
