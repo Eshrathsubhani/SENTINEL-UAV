@@ -7,6 +7,8 @@ import logging
 from pathlib import Path
 
 from database.identity_database import connect_database, initialize_database
+from database.telemetry_repository import insert_record, timestamp_us
+from gateways.telemetry_record import encode_record
 
 LOGGER = logging.getLogger(__name__)
 
@@ -19,25 +21,44 @@ class RegistryGuard:
         initialize_database(self.database)
 
     def __call__(self, record, peer_identity):
+        encode_record(record)  # Validate the complete bounded record, including direct callers.
+        if not 1 <= len(record.get("record_id", "")) <= 128:
+            raise ValueError("Invalid history record ID")
         with closing(connect_database(self.database)) as db, db:
             db.execute("BEGIN IMMEDIATE")
             uav = db.execute(
                 "SELECT * FROM uavs WHERE certificate_identity = ?", (peer_identity,)
             ).fetchone()
             reason = self._reason(uav, record, peer_identity)
+            received_at = datetime.now(timezone.utc).isoformat()
+            result = None
+            if reason == "allowed":
+                result = insert_record(db, uav["uav_id"], record, timestamp_us(received_at))
+                if result == "conflict":
+                    reason = "record_id_conflict"
             db.execute("""
                 INSERT INTO authorization_events (actor_id, target_id, action, decision, reason)
                 VALUES (?, ?, 'telemetry.ingest', ?, ?)
             """, (peer_identity, uav["uav_id"] if uav else None,
                   "allow" if reason == "allowed" else "deny", reason))
-            if reason == "allowed":
+            previous = db.execute(
+                "SELECT payload_json FROM telemetry_snapshots WHERE uav_id=? AND message_type=?",
+                (uav["uav_id"], record["message_type"]),
+            ).fetchone() if reason == "allowed" else None
+            try:
+                previous_capture = json.loads(previous["payload_json"]).get("captured_at") if previous else None
+                previous_us = timestamp_us(previous_capture) if previous_capture else None
+            except (ValueError, TypeError, OverflowError):
+                previous_us = None  # A valid record may replace a corrupt legacy snapshot.
+            newest = previous_us is None or timestamp_us(record["captured_at"]) >= previous_us
+            if reason == "allowed" and result == "inserted" and newest:
                 db.execute("""
                     INSERT INTO telemetry_snapshots VALUES (?, ?, ?, ?)
                     ON CONFLICT(uav_id, message_type) DO UPDATE SET
                         payload_json=excluded.payload_json,
                         received_at_utc=excluded.received_at_utc
                 """, (uav["uav_id"], record["message_type"], json.dumps(record, allow_nan=False),
-                      datetime.now(timezone.utc).isoformat()))
+                      received_at))
         if reason != "allowed":
             LOGGER.warning("gateway_registry_denied reason=%s", reason)
             raise ValueError("Registry rejected the telemetry record")

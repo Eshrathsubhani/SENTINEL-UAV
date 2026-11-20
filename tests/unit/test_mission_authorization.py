@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from uuid import uuid4
 
 from database.identity_database import connect_database
 from security.authorization.policy_engine import PolicyEngine
@@ -35,9 +36,13 @@ class MissionAuthorizationTest(unittest.TestCase):
         stamp = datetime.fromtimestamp(self.now - age, timezone.utc).isoformat()
         record = {
             "schema_version": 3, "message_type": "GLOBAL_POSITION_INT",
+            "record_id": uuid4().hex, "vehicle_id": "1", "component_id": 1, "source_boot_ms": 100,
             "system_id": 1, "uav_identity": "urn:sentinel:uav:1",
             "signing_key_id": "a" * 64, "captured_at": stamp,
-            "values": {"latitude_deg": latitude, "longitude_deg": 149.1652375},
+            "values": {"latitude_deg": latitude, "longitude_deg": 149.1652375,
+                       "altitude_msl_m": 584.0, "relative_altitude_m": 0.0,
+                       "velocity_north_mps": 0.0, "velocity_east_mps": 0.0,
+                       "velocity_down_mps": 0.0},
         }
         RegistryGuard(self.path)(record, "urn:sentinel:uav:1")
         record["signing_key_id"] = key

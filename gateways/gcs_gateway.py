@@ -2,6 +2,7 @@
 
 import logging
 import socket
+import sqlite3
 
 from gateways.telemetry_record import RECORD_ACCEPTED, receive_record
 
@@ -45,7 +46,7 @@ def receive_telemetry(listener, context, allowed_uav_identity, *, timeout=3.0,
                     raise ValueError("Record identity does not match the authenticated UAV")
                 if record_guard is not None:
                     record_guard(record, allowed_uav_identity)
-            except (OSError, ValueError, RecursionError):
+            except (OSError, ValueError, RecursionError, sqlite3.Error):
                 LOGGER.warning("gateway_connection_rejected category=telemetry_record")
                 return None
 

@@ -37,10 +37,10 @@ class DatabaseMigrationTest(unittest.TestCase):
         initialize_database(self.path)
         initialize_database(self.path)
         with closing(connect_database(self.path)) as db:
-            self.assertEqual(contents(db), before)
-            self.assertEqual([tuple(r) for r in db.execute(
-                "SELECT name, sql FROM sqlite_master ORDER BY name")], [tuple(r) for r in schema])
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 4)
+            self.assertTrue(all(contents(db)[table] == rows for table, rows in before.items()))
+            self.assertTrue(set(tuple(r) for r in schema).issubset(
+                set(tuple(r) for r in db.execute("SELECT name, sql FROM sqlite_master ORDER BY name"))))
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 5)
             self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
             self.assertEqual(db.execute("PRAGMA foreign_key_check").fetchall(), [])
 
@@ -65,7 +65,7 @@ class DatabaseMigrationTest(unittest.TestCase):
                 with closing(connect_database(self.path)) as db:
                     after = contents(db)
                     self.assertTrue(all(after[table] == rows for table, rows in before.items()))
-                    self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 4)
+                    self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 5)
                     self.assertEqual(db.execute("PRAGMA foreign_key_check").fetchall(), [])
                     self.assertIn("command_requests", after)
                     self.assertIn("telemetry_snapshots", after)
@@ -81,7 +81,7 @@ class DatabaseMigrationTest(unittest.TestCase):
             db.execute("UPDATE users SET username='changed'")
             raise RuntimeError("Injected migration failure")
 
-        with patch.object(migrations, "MIGRATIONS", (*migrations.MIGRATIONS[:3], failure)):
+        with patch.object(migrations, "MIGRATIONS", (*migrations.MIGRATIONS[:3], failure, migrations.MIGRATIONS[4])):
             with self.assertRaisesRegex(RuntimeError, "Injected migration"):
                 initialize_database(self.path)
         with closing(connect_database(self.path)) as db:
@@ -96,7 +96,7 @@ class DatabaseMigrationTest(unittest.TestCase):
             raise RuntimeError("Injected third-step failure")
 
         with patch.object(migrations, "MIGRATIONS", (*migrations.MIGRATIONS[:2], failure,
-                                                     migrations.MIGRATIONS[3])):
+                                                     migrations.MIGRATIONS[3], migrations.MIGRATIONS[4])):
             with self.assertRaises(RuntimeError):
                 initialize_database(fresh)
         with closing(connect_database(fresh)) as db:

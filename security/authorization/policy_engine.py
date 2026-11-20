@@ -6,6 +6,7 @@ from getpass import getpass
 import json
 from pathlib import Path
 
+from database.telemetry_repository import history_filter, query_history
 from security.authorization.mission_policy import mission_reason, valid_coordinates
 from security.authentication.auth_service import AuthService, AuthenticationError, _principal, _token_hash
 
@@ -44,6 +45,13 @@ class PolicyEngine:
             raise PermissionError(decision.reason)
         return result
 
+    def read_history(self, token, uav_id, start, end, *, limit=100, cursor=None):
+        filters = history_filter(start, end, limit, cursor)
+        decision, result = self._request(token, uav_id, "telemetry.read", history=filters)
+        if not decision.allowed:
+            raise PermissionError(decision.reason)
+        return result
+
     def configure_mission(self, token, uav_id, latitude, longitude):
         if not valid_coordinates(latitude, longitude):
             raise ValueError("Invalid mission origin coordinates")
@@ -53,7 +61,7 @@ class PolicyEngine:
             raise PermissionError(decision.reason)
         return decision
 
-    def _request(self, token, uav_id, action, *, read=False, origin=None):
+    def _request(self, token, uav_id, action, *, read=False, origin=None, history=None):
         resource = uav_id if isinstance(uav_id, str) and 1 <= len(uav_id) <= 128 else None
         action = action if isinstance(action, str) and 1 <= len(action) <= 128 else "invalid_action"
         result = None
@@ -84,6 +92,8 @@ class PolicyEngine:
                     ON CONFLICT(name) DO UPDATE SET configuration_json=excluded.configuration_json,
                         version=policies.version + 1, updated_at=CURRENT_TIMESTAMP
                 """, ("mission_area:" + resource, configuration))
+            if decision.allowed and history is not None:
+                result = query_history(db, resource, history)
             if decision.allowed and read:
                 result = [
                     {"received_at_utc": row["received_at_utc"],
@@ -128,7 +138,15 @@ def main():
     parser.add_argument("--read-telemetry", action="store_true")
     parser.add_argument("--origin-latitude", type=float)
     parser.add_argument("--origin-longitude", type=float)
+    parser.add_argument("--read-history", action="store_true")
+    parser.add_argument("--from-time")
+    parser.add_argument("--to-time")
+    parser.add_argument("--limit", type=int, default=100)
+    parser.add_argument("--cursor")
     args = parser.parse_args()
+    if args.read_history and (args.action != "telemetry.read" or args.read_telemetry
+                              or not args.from_time or not args.to_time):
+        parser.error("--read-history requires telemetry.read, --from-time and --to-time")
     if args.read_telemetry and args.action != "telemetry.read":
         parser.error("--read-telemetry requires --action telemetry.read")
     configuring = args.origin_latitude is not None or args.origin_longitude is not None
@@ -139,6 +157,11 @@ def main():
     token = None
     try:
         token = engine.auth.login(args.username, getpass("Account password: "))
+        if args.read_history:
+            result = engine.read_history(token, args.uav_id, args.from_time, args.to_time,
+                                         limit=args.limit, cursor=args.cursor)
+            print(json.dumps({"uav_id": args.uav_id, **result}, indent=2))
+            return 0
         if args.read_telemetry:
             records = engine.read_telemetry(token, args.uav_id)
             print(json.dumps({"uav_id": args.uav_id, "telemetry": records}, indent=2))

@@ -29,6 +29,9 @@ class ProtectedTelemetryTest(unittest.TestCase):
             "schema_version": 3, "uav_identity": "urn:sentinel:uav:1",
             "system_id": 1, "signing_key_id": "a" * 64,
             "message_type": "HEARTBEAT", "record_id": "first",
+            "vehicle_id": "1", "component_id": 1, "source_boot_ms": None,
+            "captured_at": "2026-01-01T00:00:00+00:00",
+            "values": {"vehicle_type": 2, "armed": 0},
         }
 
     def test_only_latest_accepted_record_is_returned_and_survives_restart(self):
@@ -75,11 +78,12 @@ class ProtectedTelemetryTest(unittest.TestCase):
 
     def test_schema_two_upgrade_preserves_identity_and_assignments(self):
         with closing(connect_database(self.path)) as db, db:
+            db.execute("DROP TABLE telemetry_records")
             db.execute("DROP TABLE command_requests")
             db.execute("DROP TABLE telemetry_snapshots")
             db.execute("PRAGMA user_version = 2")
         initialize_database(self.path)
         self.assertEqual(self.engine.read_telemetry(self.admin, self.uav), [])
         with closing(connect_database(self.path)) as db:
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 4)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 5)
             self.assertEqual(db.execute("SELECT COUNT(*) FROM uav_assignments").fetchone()[0], 1)

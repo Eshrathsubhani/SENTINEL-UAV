@@ -110,3 +110,13 @@ class GatewayRegistryTest(unittest.TestCase):
         legacy = dict(self.record, schema_version=2)
         del legacy["signing_key_id"]
         self.assertEqual(self.exchange(legacy), (None, [], False))
+
+    def test_database_failure_is_not_acknowledged_and_leaves_no_history(self):
+        self.register()
+        with closing(connect_database(self.path)) as db, db:
+            db.execute("CREATE TRIGGER fail_history BEFORE INSERT ON telemetry_records "
+                       "BEGIN SELECT RAISE(ABORT,'injected storage failure'); END")
+        self.assertEqual(self.exchange(self.record), (None, [], False))
+        with closing(connect_database(self.path)) as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM telemetry_records").fetchone()[0], 0)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM telemetry_snapshots").fetchone()[0], 0)
