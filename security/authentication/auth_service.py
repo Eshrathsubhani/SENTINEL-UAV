@@ -14,6 +14,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 
 from database.identity_database import connect_database, initialize_database
+from database.connection import database_transaction
 
 HASHER = PasswordHasher()
 DUMMY_HASH = HASHER.hash(secrets.token_urlsafe(32))
@@ -73,8 +74,7 @@ class AuthService:
 
     @contextmanager
     def _transaction(self):
-        with closing(connect_database(self.database)) as db, db:
-            db.execute("BEGIN IMMEDIATE")
+        with database_transaction(self.database) as db:
             yield db
 
     @contextmanager

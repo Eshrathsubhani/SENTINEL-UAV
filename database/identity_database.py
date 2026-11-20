@@ -1,154 +1,19 @@
-"""Initialize the persistent Phase 4 identity schema."""
+"""Initialize the persistent identity schema using ordered atomic migrations."""
 
 import argparse
-import sqlite3
-from contextlib import closing
 from pathlib import Path
 
-SCHEMA_VERSION = 4
-PERMISSIONS = {
-    "Administrator": (
-        "telemetry.read", "status.read", "command.request", "users.manage",
-        "uavs.manage", "assignments.manage", "audit.read", "policies.manage",
-    ),
-    "Operator": ("telemetry.read", "status.read", "command.request", "audit.read_own"),
-    "Viewer": ("telemetry.read", "status.read"),
-}
-SCHEMA = (
-    """CREATE TABLE roles (
-        name TEXT PRIMARY KEY CHECK(name IN ('Administrator', 'Operator', 'Viewer'))
-    )""",
-    """CREATE TABLE permissions (name TEXT PRIMARY KEY)""",
-    """CREATE TABLE role_permissions (
-        role_name TEXT REFERENCES roles(name),
-        permission_name TEXT REFERENCES permissions(name),
-        PRIMARY KEY(role_name, permission_name)
-    )""",
-    """CREATE TABLE users (
-        user_id TEXT PRIMARY KEY NOT NULL,
-        username TEXT NOT NULL COLLATE NOCASE UNIQUE CHECK(length(trim(username)) > 0),
-        password_hash TEXT NOT NULL CHECK(password_hash LIKE '$argon2id$%'),
-        role_name TEXT NOT NULL REFERENCES roles(name),
-        status TEXT NOT NULL DEFAULT 'active'
-            CHECK(status IN ('active', 'suspended', 'revoked')),
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )""",
-    """CREATE TABLE uavs (
-        uav_id TEXT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL CHECK(length(trim(name)) > 0),
-        description TEXT NOT NULL DEFAULT '',
-        system_id INTEGER NOT NULL UNIQUE CHECK(system_id BETWEEN 1 AND 255),
-        certificate_identity TEXT NOT NULL UNIQUE,
-        signing_key_id TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending'
-            CHECK(status IN ('pending', 'active', 'suspended', 'revoked')),
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )""",
-    """CREATE TABLE uav_assignments (
-        user_id TEXT NOT NULL REFERENCES users(user_id),
-        uav_id TEXT NOT NULL REFERENCES uavs(uav_id),
-        assigned_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY(user_id, uav_id)
-    )""",
-    """CREATE TABLE sessions (
-        token_hash TEXT PRIMARY KEY NOT NULL CHECK(length(token_hash) = 64),
-        user_id TEXT NOT NULL REFERENCES users(user_id),
-        created_at_epoch INTEGER NOT NULL,
-        expires_at_epoch INTEGER NOT NULL CHECK(expires_at_epoch > created_at_epoch),
-        revoked_at_epoch INTEGER
-    )""",
-    """CREATE INDEX sessions_user ON sessions(user_id)""",
-    """CREATE INDEX assignments_uav ON uav_assignments(uav_id)""",
-    """CREATE TABLE policies (
-        name TEXT PRIMARY KEY NOT NULL,
-        configuration_json TEXT NOT NULL,
-        version INTEGER NOT NULL CHECK(version > 0),
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )""",
-    """CREATE TABLE authorization_events (
-        event_id INTEGER PRIMARY KEY,
-        occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        actor_id TEXT,
-        target_id TEXT,
-        action TEXT NOT NULL,
-        decision TEXT NOT NULL CHECK(decision IN ('allow', 'deny')),
-        reason TEXT NOT NULL
-    )""",
-    """CREATE INDEX authorization_actor ON authorization_events(actor_id, event_id)""",
-    """CREATE TABLE identity_events (
-        event_id INTEGER PRIMARY KEY,
-        occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        actor_id TEXT,
-        target_id TEXT,
-        event TEXT NOT NULL,
-        reason TEXT NOT NULL
-    )""",
-)
-
-
-def connect_database(path):
-    """Open a connection with foreign keys enforced for every caller."""
-    connection = sqlite3.connect(path, timeout=10)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
-    return connection
+from database.connection import connect_database, database_transaction
+from database.migrations import SCHEMA_VERSION, apply_migrations
+from database.schema_v1 import PERMISSIONS, SCHEMA
 
 
 def initialize_database(path):
-    """Initialize or upgrade the schema atomically while preserving records."""
+    """Initialize or upgrade atomically while preserving existing records."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with closing(connect_database(path)) as connection, connection:
-        connection.execute("BEGIN IMMEDIATE")
-        version = connection.execute("PRAGMA user_version").fetchone()[0]
-        if version == SCHEMA_VERSION:
-            return
-        if version not in (0, 1, 2, 3):
-            raise ValueError(f"Unsupported identity schema version {version}")
-        if version == 0:
-            tables = connection.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
-            ).fetchall()
-            if tables:
-                raise ValueError("Use an empty database or an initialized identity database")
-            for statement in SCHEMA:
-                connection.execute(statement)
-            for role, permissions in PERMISSIONS.items():
-                connection.execute("INSERT INTO roles VALUES (?)", (role,))
-                for permission in permissions:
-                    connection.execute("INSERT OR IGNORE INTO permissions VALUES (?)", (permission,))
-                    connection.execute("INSERT INTO role_permissions VALUES (?, ?)", (role, permission))
-        if version in (0, 1):
-            connection.execute("""
-                CREATE TABLE login_attempts (
-                    username TEXT PRIMARY KEY,
-                    failures INTEGER NOT NULL CHECK(failures >= 0),
-                    window_start_epoch INTEGER NOT NULL,
-                    blocked_until_epoch INTEGER NOT NULL DEFAULT 0)
-            """)
-        if version in (0, 1, 2):
-            connection.execute("""
-                CREATE TABLE telemetry_snapshots (
-                    uav_id TEXT NOT NULL REFERENCES uavs(uav_id),
-                    message_type TEXT NOT NULL,
-                    payload_json TEXT NOT NULL,
-                    received_at_utc TEXT NOT NULL,
-                    PRIMARY KEY(uav_id, message_type))
-            """)
-        connection.execute("""
-            CREATE TABLE command_requests (
-                request_id TEXT PRIMARY KEY NOT NULL,
-                token_hash TEXT NOT NULL REFERENCES sessions(token_hash),
-                uav_id TEXT NOT NULL REFERENCES uavs(uav_id),
-                action TEXT NOT NULL CHECK(action = 'command.status'),
-                created_at_epoch INTEGER NOT NULL,
-                expires_at_epoch INTEGER NOT NULL,
-                status TEXT NOT NULL CHECK(status IN
-                    ('queued', 'dispatching', 'sent', 'denied', 'failed')),
-                reason TEXT NOT NULL)
-        """)
-        connection.execute("CREATE INDEX pending_commands ON command_requests(status, uav_id)")
-        connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+    with database_transaction(path) as connection:
+        apply_migrations(connection)
 
 
 def main():

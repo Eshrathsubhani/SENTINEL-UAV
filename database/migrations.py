@@ -1,0 +1,76 @@
+"""Ordered schema migrations; the current data layout remains version 4.
+
+Run only within an explicit transaction. Never use executescript here, because
+it can commit the caller's transaction before all migrations finish.
+"""
+
+from database.schema_v1 import PERMISSIONS, SCHEMA
+
+
+def version_1(connection):
+    tables = connection.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+    ).fetchall()
+    if tables:
+        raise ValueError("Use an empty database or an initialized identity database")
+    for statement in SCHEMA:
+        connection.execute(statement)
+    for role, permissions in PERMISSIONS.items():
+        connection.execute("INSERT INTO roles VALUES (?)", (role,))
+        for permission in permissions:
+            connection.execute("INSERT OR IGNORE INTO permissions VALUES (?)", (permission,))
+            connection.execute("INSERT INTO role_permissions VALUES (?, ?)", (role, permission))
+
+
+def version_2(connection):
+    connection.execute("""
+        CREATE TABLE login_attempts (
+            username TEXT PRIMARY KEY,
+            failures INTEGER NOT NULL CHECK(failures >= 0),
+            window_start_epoch INTEGER NOT NULL,
+            blocked_until_epoch INTEGER NOT NULL DEFAULT 0)
+    """)
+
+
+def version_3(connection):
+    connection.execute("""
+        CREATE TABLE telemetry_snapshots (
+            uav_id TEXT NOT NULL REFERENCES uavs(uav_id),
+            message_type TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            received_at_utc TEXT NOT NULL,
+            PRIMARY KEY(uav_id, message_type))
+    """)
+
+
+def version_4(connection):
+    connection.execute("""
+        CREATE TABLE command_requests (
+            request_id TEXT PRIMARY KEY NOT NULL,
+            token_hash TEXT NOT NULL REFERENCES sessions(token_hash),
+            uav_id TEXT NOT NULL REFERENCES uavs(uav_id),
+            action TEXT NOT NULL CHECK(action = 'command.status'),
+            created_at_epoch INTEGER NOT NULL,
+            expires_at_epoch INTEGER NOT NULL,
+            status TEXT NOT NULL CHECK(status IN
+                ('queued', 'dispatching', 'sent', 'denied', 'failed')),
+            reason TEXT NOT NULL)
+    """)
+    connection.execute("CREATE INDEX pending_commands ON command_requests(status, uav_id)")
+
+
+MIGRATIONS = (version_1, version_2, version_3, version_4)
+SCHEMA_VERSION = len(MIGRATIONS)
+
+
+def apply_migrations(connection):
+    """Apply each pending step; caller owns commit/rollback and writer lock."""
+    if not connection.in_transaction:
+        raise RuntimeError("Schema migrations require an explicit transaction")
+    version = connection.execute("PRAGMA user_version").fetchone()[0]
+    if not 0 <= version <= SCHEMA_VERSION:
+        raise ValueError(f"Unsupported identity schema version {version}")
+    for index in range(version, SCHEMA_VERSION):
+        MIGRATIONS[index](connection)
+        # The version is derived from the internal ordered migration list.
+        connection.execute(f"PRAGMA user_version = {index + 1}")
