@@ -85,5 +85,5 @@ class ProtectedTelemetryTest(unittest.TestCase):
         initialize_database(self.path)
         self.assertEqual(self.engine.read_telemetry(self.admin, self.uav), [])
         with closing(connect_database(self.path)) as db:
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 5)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 6)
             self.assertEqual(db.execute("SELECT COUNT(*) FROM uav_assignments").fetchone()[0], 1)

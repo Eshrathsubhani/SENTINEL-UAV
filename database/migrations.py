@@ -1,4 +1,4 @@
-"""Ordered schema migrations; the version 5 adds accepted telemetry history.
+"""Ordered schema migrations for identity and accepted telemetry history.
 
 Run only within an explicit transaction. Never use executescript here, because
 it can commit the caller's transaction before all migrations finish.
@@ -76,7 +76,27 @@ def version_5(connection):
     connection.execute("CREATE INDEX telemetry_uav_time ON telemetry_records(uav_id,captured_at_us,record_id)")
 
 
-MIGRATIONS = (version_1, version_2, version_3, version_4, version_5)
+def version_6(connection):
+    connection.execute("""
+        CREATE TABLE telemetry_records_v6 (
+            record_id TEXT PRIMARY KEY NOT NULL CHECK(length(record_id) BETWEEN 1 AND 128),
+            uav_id TEXT NOT NULL REFERENCES uavs(uav_id),
+            captured_at_us INTEGER NOT NULL,
+            received_at_us INTEGER NOT NULL,
+            message_type TEXT NOT NULL CHECK(message_type IN ('HEARTBEAT','GLOBAL_POSITION_INT','SYS_STATUS','BATTERY_STATUS')),
+            system_id INTEGER NOT NULL CHECK(system_id BETWEEN 1 AND 255),
+            component_id INTEGER NOT NULL CHECK(component_id BETWEEN 1 AND 255),
+            source TEXT NOT NULL CHECK(source = 'authenticated_uav_gateway'),
+            validation_status TEXT NOT NULL CHECK(validation_status = 'gateway_attested'),
+            payload_json TEXT NOT NULL)
+    """)
+    connection.execute("INSERT INTO telemetry_records_v6 SELECT * FROM telemetry_records")
+    connection.execute("DROP TABLE telemetry_records")
+    connection.execute("ALTER TABLE telemetry_records_v6 RENAME TO telemetry_records")
+    connection.execute("CREATE INDEX telemetry_uav_time ON telemetry_records(uav_id,captured_at_us,record_id)")
+
+
+MIGRATIONS = (version_1, version_2, version_3, version_4, version_5, version_6)
 SCHEMA_VERSION = len(MIGRATIONS)
 
 

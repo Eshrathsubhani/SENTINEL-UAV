@@ -15,6 +15,7 @@ FIELDS = (
     "gps_fix_type", "latitude_deg", "longitude_deg", "altitude_msl_m",
     "relative_altitude_m", "ground_speed_mps", "heading_deg",
     "roll_rad", "pitch_rad", "yaw_rad", "battery_id", "battery_remaining_pct", "battery_voltage_v",
+    "armed", "base_mode", "autopilot_type", "flight_mode_code",
 )
 
 
@@ -91,7 +92,7 @@ def collect(receiver, destination, args, *, on_live_telemetry=None):
                     **normalize(message),
                 })
                 run["message_counts"][kind] = run["message_counts"].get(kind, 0) + 1
-                if on_live_telemetry is not None and kind in {"HEARTBEAT", "GLOBAL_POSITION_INT"}:
+                if on_live_telemetry is not None and kind in {"HEARTBEAT", "GLOBAL_POSITION_INT", "SYS_STATUS", "BATTERY_STATUS"}:
                     on_live_telemetry(message, received_at_utc)
                 if now - last_flush >= 1:
                     output.flush()

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 import json
-from math import isfinite
+from math import hypot, isclose, isfinite
 import re
 from time import monotonic
 
@@ -61,21 +61,51 @@ def _validate_live_fields(record, values):
     if boot_ms is not None and (type(boot_ms) is not int or not 0 <= boot_ms < 2**32):
         raise ValueError("Invalid MAVLink boot timestamp")
     if record["message_type"] == "HEARTBEAT":
-        if set(values) != {"vehicle_type", "armed"} or boot_ms is not None:
+        required = {"vehicle_type", "armed"}
+        optional = {"base_mode", "autopilot_type", "flight_mode_code"}
+        if not required <= values.keys() <= required | optional or boot_ms is not None:
             raise ValueError("Invalid heartbeat fields")
         if type(values["vehicle_type"]) is not int or not 0 <= values["vehicle_type"] <= 255:
             raise ValueError("Invalid vehicle type")
         if type(values["armed"]) is not int or values["armed"] not in (0, 1):
             raise ValueError("Invalid armed state")
+        for key in ("base_mode", "autopilot_type"):
+            if key in values and (type(values[key]) is not int or not 0 <= values[key] <= 255):
+                raise ValueError("Invalid heartbeat mode metadata")
+        if "base_mode" in values and values["armed"] != int(bool(values["base_mode"] & 128)):
+            raise ValueError("Armed state disagrees with base mode")
+        if "flight_mode_code" in values:
+            if (type(values["flight_mode_code"]) is not int or not 0 <= values["flight_mode_code"] < 2**32
+                    or not values.get("base_mode", 0) & 1):
+                raise ValueError("Invalid autopilot-specific mode code")
     elif record["message_type"] == "GLOBAL_POSITION_INT":
         required = {
             "latitude_deg", "longitude_deg", "altitude_msl_m", "relative_altitude_m",
             "velocity_north_mps", "velocity_east_mps", "velocity_down_mps",
         }
-        if boot_ms is None or not required <= values.keys() <= required | {"heading_deg"}:
+        if boot_ms is None or not required <= values.keys() <= required | {"heading_deg", "ground_speed_mps"}:
             raise ValueError("Invalid global-position fields")
         if not (-90 <= values["latitude_deg"] <= 90 and -180 <= values["longitude_deg"] <= 180):
             raise ValueError("Invalid position coordinates")
+        if "ground_speed_mps" in values:
+            expected = hypot(values["velocity_north_mps"], values["velocity_east_mps"])
+            if values["ground_speed_mps"] < 0 or not isclose(values["ground_speed_mps"], expected,
+                                                          rel_tol=1e-9, abs_tol=1e-9):
+                raise ValueError("Groundspeed disagrees with horizontal velocity")
+    elif record["message_type"] in {"SYS_STATUS", "BATTERY_STATUS"}:
+        allowed = {"battery_remaining_pct", "battery_voltage_v"}
+        if record["message_type"] == "BATTERY_STATUS":
+            allowed.add("battery_id")
+            if (type(values.get("battery_id")) is not int or not 0 <= values["battery_id"] <= 255):
+                raise ValueError("Invalid battery ID")
+        if boot_ms is not None or not values.keys() <= allowed:
+            raise ValueError("Invalid battery fields")
+        if "battery_remaining_pct" in values and (
+                type(values["battery_remaining_pct"]) is not int
+                or not 0 <= values["battery_remaining_pct"] <= 100):
+            raise ValueError("Invalid battery percentage")
+        if "battery_voltage_v" in values and not 0 < values["battery_voltage_v"] < 1000:
+            raise ValueError("Invalid battery voltage")
     else:
         raise ValueError("Unsupported live telemetry message type")
 

@@ -33,12 +33,17 @@ def live_record(message, received_at, uav_identity, signing_key_id=None):
     system_id = message.get_srcSystem()
     if kind == "HEARTBEAT":
         # MAV_MODE_FLAG_SAFETY_ARMED is bit 7.
-        values = {"vehicle_type": message.type, "armed": int(bool(message.base_mode & 128))}
-    else:
+        values = {"vehicle_type": message.type, **normalize(message)}
+        values["armed"] = int(bool(message.base_mode & 128))
+    elif kind == "GLOBAL_POSITION_INT":
         values = {key: value for key, value in normalize(message).items() if value is not None}
         values.update(velocity_north_mps=message.vx / 100,
                       velocity_east_mps=message.vy / 100,
                       velocity_down_mps=message.vz / 100)
+    elif kind in {"SYS_STATUS", "BATTERY_STATUS"}:
+        values = {key: value for key, value in normalize(message).items() if value is not None}
+    else:
+        raise ValueError("Unsupported live telemetry message type")
     record = {
         "schema_version": 2, "record_id": uuid4().hex, "uav_identity": uav_identity,
         "vehicle_id": str(system_id), "system_id": system_id,

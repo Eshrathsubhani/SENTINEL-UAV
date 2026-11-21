@@ -29,7 +29,7 @@ class AuthServiceTest(unittest.TestCase):
             token_hash = db.execute("SELECT token_hash FROM sessions").fetchone()[0]
             self.assertNotEqual(token_hash, self.admin)
             self.assertNotIn(self.admin, self.path.read_bytes().decode("latin1"))
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 5)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 6)
 
     def test_login_for_all_roles_and_administrator_creation_boundary(self):
         for role in ("Operator", "Viewer"):

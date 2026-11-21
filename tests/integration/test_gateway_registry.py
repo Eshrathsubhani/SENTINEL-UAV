@@ -120,3 +120,23 @@ class GatewayRegistryTest(unittest.TestCase):
         with closing(connect_database(self.path)) as db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM telemetry_records").fetchone()[0], 0)
             self.assertEqual(db.execute("SELECT COUNT(*) FROM telemetry_snapshots").fetchone()[0], 0)
+
+    def test_battery_records_cross_mtls_and_are_stored_before_acknowledgement(self):
+        self.register()
+        status = SimpleNamespace(get_type=lambda: "SYS_STATUS", get_srcSystem=lambda: 1,
+                                 get_srcComponent=lambda: 1, battery_remaining=75, voltage_battery=12000)
+        battery = SimpleNamespace(get_type=lambda: "BATTERY_STATUS", get_srcSystem=lambda: 1,
+                                  get_srcComponent=lambda: 1, id=0, battery_remaining=75,
+                                  voltages=[12000] + [65535] * 9, voltages_ext=[0] * 4)
+        for msg in (status, battery):
+            with self.subTest(message_type=msg.get_type()):
+                record = live_record(msg, "2026-11-18T00:00:00+00:00", IDENTITY, "a" * 64)
+                received, persisted, acknowledged = self.exchange(record)
+                self.assertEqual(received, record)
+                self.assertEqual(persisted, [record])
+                self.assertTrue(acknowledged)
+                with closing(connect_database(self.path)) as db:
+                    row = db.execute("SELECT payload_json FROM telemetry_records WHERE record_id=?",
+                                     (record["record_id"],)).fetchone()
+                    import json
+                    self.assertEqual(json.loads(row["payload_json"]), record)
