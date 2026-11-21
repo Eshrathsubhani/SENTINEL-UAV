@@ -140,3 +140,26 @@ class GatewayRegistryTest(unittest.TestCase):
                                      (record["record_id"],)).fetchone()
                     import json
                     self.assertEqual(json.loads(row["payload_json"]), record)
+
+    def test_accepted_mtls_heartbeat_records_communication_evidence(self):
+        from database.telemetry_repository import timestamp_us
+        self.register()
+        self.guard = RegistryGuard(self.path, clock=lambda: timestamp_us(self.record["captured_at"]))
+        self.assertTrue(self.exchange(self.record)[2])
+        with closing(connect_database(self.path)) as db:
+            state = db.execute("SELECT state FROM communication_state").fetchone()[0]
+            event = db.execute("SELECT event,record_id FROM communication_events").fetchone()
+            self.assertEqual(state, "connected")
+            self.assertEqual(tuple(event), ("heartbeat_received", self.record["record_id"]))
+
+    def test_communication_storage_failure_sends_no_success_acknowledgement(self):
+        from database.telemetry_repository import timestamp_us
+        self.register()
+        self.guard = RegistryGuard(self.path, clock=lambda: timestamp_us(self.record["captured_at"]))
+        with closing(connect_database(self.path)) as db, db:
+            db.execute("CREATE TRIGGER fail_communication BEFORE INSERT ON communication_events "
+                       "BEGIN SELECT RAISE(ABORT,'injected event failure'); END")
+        self.assertEqual(self.exchange(self.record), (None, [], False))
+        with closing(connect_database(self.path)) as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM telemetry_records").fetchone()[0], 0)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM telemetry_snapshots").fetchone()[0], 0)

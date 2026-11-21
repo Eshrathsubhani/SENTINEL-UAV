@@ -96,7 +96,32 @@ def version_6(connection):
     connection.execute("CREATE INDEX telemetry_uav_time ON telemetry_records(uav_id,captured_at_us,record_id)")
 
 
-MIGRATIONS = (version_1, version_2, version_3, version_4, version_5, version_6)
+def version_7(connection):
+    connection.execute("""
+        CREATE TABLE communication_state (
+            uav_id TEXT PRIMARY KEY NOT NULL REFERENCES uavs(uav_id),
+            state TEXT NOT NULL CHECK(state IN ('connected','lost')),
+            last_captured_at_us INTEGER NOT NULL,
+            last_received_at_us INTEGER NOT NULL,
+            timeout_us INTEGER NOT NULL CHECK(timeout_us > 0),
+            signing_key_id TEXT NOT NULL,
+            certificate_identity TEXT NOT NULL)
+    """)
+    connection.execute("""
+        CREATE TABLE communication_events (
+            event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uav_id TEXT NOT NULL REFERENCES uavs(uav_id),
+            occurred_at_us INTEGER NOT NULL,
+            event TEXT NOT NULL CHECK(event IN
+                ('heartbeat_received','heartbeat_lost','heartbeat_recovered')),
+            source TEXT NOT NULL CHECK(source='gcs_accepted_heartbeat'),
+            reason TEXT NOT NULL,
+            record_id TEXT REFERENCES telemetry_records(record_id) ON DELETE SET NULL)
+    """)
+    connection.execute("CREATE INDEX communication_uav_time ON communication_events(uav_id,occurred_at_us,event_id)")
+
+
+MIGRATIONS = (version_1, version_2, version_3, version_4, version_5, version_6, version_7)
 SCHEMA_VERSION = len(MIGRATIONS)
 
 

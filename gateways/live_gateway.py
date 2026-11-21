@@ -158,7 +158,7 @@ def run_uav(args, context):
 
 
 def run_gcs(args, context):
-    guard = RegistryGuard(args.identity_database) if args.identity_database is not None else None
+    guard = RegistryGuard(args.identity_database, heartbeat_timeout=args.heartbeat_timeout) if args.identity_database is not None else None
     args.received.parent.mkdir(parents=True, exist_ok=True)
     with open_listener(args.tls_port) as listener, args.received.open("a", encoding="utf-8") as output:
         record_credential_config(args)
@@ -173,6 +173,8 @@ def run_gcs(args, context):
                         record["message_type"], record["record_id"])
 
         while True:
+            if guard is not None:
+                guard.check_heartbeat_timeouts()
             try:
                 receive_telemetry(listener, context, args.uav_identity, timeout=1.5,
                                   on_record=persist, required_schema=3 if guard else 2, record_guard=guard)

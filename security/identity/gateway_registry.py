@@ -5,16 +5,25 @@ from datetime import datetime, timezone
 import json
 import logging
 from pathlib import Path
+from math import isfinite
+from datetime import timedelta
 
 from database.identity_database import connect_database, initialize_database
 from database.telemetry_repository import insert_record, timestamp_us
 from gateways.telemetry_record import encode_record
+from database.connection import database_transaction
+from database.communication_repository import expire_heartbeats, observe_heartbeat, utc_us
 
 LOGGER = logging.getLogger(__name__)
 
 
 class RegistryGuard:
-    def __init__(self, database):
+    def __init__(self, database, *, heartbeat_timeout=5, clock=utc_us):
+        if (type(heartbeat_timeout) not in (int, float) or not isfinite(heartbeat_timeout)
+                or not 0.001 <= heartbeat_timeout <= 3600):
+            raise ValueError("Heartbeat timeout must be 0.001 to 3600 seconds")
+        self.timeout_us = int(heartbeat_timeout * 1000000)
+        self.clock = clock
         self.database = Path(database)
         if not self.database.is_file():
             raise ValueError("The identity database must already exist")
@@ -30,7 +39,8 @@ class RegistryGuard:
                 "SELECT * FROM uavs WHERE certificate_identity = ?", (peer_identity,)
             ).fetchone()
             reason = self._reason(uav, record, peer_identity)
-            received_at = datetime.now(timezone.utc).isoformat()
+            now_us = self.clock()
+            received_at = (datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=now_us)).isoformat()
             result = None
             if reason == "allowed":
                 result = insert_record(db, uav["uav_id"], record, timestamp_us(received_at))
@@ -59,10 +69,17 @@ class RegistryGuard:
                         received_at_utc=excluded.received_at_utc
                 """, (uav["uav_id"], record["message_type"], json.dumps(record, allow_nan=False),
                       received_at))
+            if reason == "allowed" and result == "inserted" and record["message_type"] == "HEARTBEAT":
+                observe_heartbeat(db, uav, record, now_us, timestamp_us(record["captured_at"]), self.timeout_us)
         if reason != "allowed":
             LOGGER.warning("gateway_registry_denied reason=%s", reason)
             raise ValueError("Registry rejected the telemetry record")
         LOGGER.info("gateway_registry_allowed uav_id=%s", uav["uav_id"])
+
+    def check_heartbeat_timeouts(self):
+        """Trusted GCS observer task; never an unauthenticated user API."""
+        with database_transaction(self.database) as db:
+            expire_heartbeats(db, self.clock())
 
     @staticmethod
     def _reason(uav, record, peer_identity):

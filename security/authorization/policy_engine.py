@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from database.telemetry_repository import history_filter, query_history
+from database.communication_repository import read_communication
 from security.authorization.mission_policy import mission_reason, valid_coordinates
 from security.authentication.auth_service import AuthService, AuthenticationError, _principal, _token_hash
 
@@ -52,6 +53,18 @@ class PolicyEngine:
             raise PermissionError(decision.reason)
         return result
 
+    def communication_status(self, token, uav_id, *, limit=100, before=None):
+        if type(limit) is not int or not 1 <= limit <= 1000:
+            raise ValueError("Page size must be 1 to 1000")
+        if before is not None and (
+                type(before) is not list or len(before) != 2 or type(before[0]) is not int
+                or type(before[1]) is not int or before[1] < 1):
+            raise ValueError("Invalid communication cursor")
+        decision, result = self._request(token, uav_id, "status.read", communication=(limit, before))
+        if not decision.allowed:
+            raise PermissionError(decision.reason)
+        return result
+
     def configure_mission(self, token, uav_id, latitude, longitude):
         if not valid_coordinates(latitude, longitude):
             raise ValueError("Invalid mission origin coordinates")
@@ -61,7 +74,7 @@ class PolicyEngine:
             raise PermissionError(decision.reason)
         return decision
 
-    def _request(self, token, uav_id, action, *, read=False, origin=None, history=None):
+    def _request(self, token, uav_id, action, *, read=False, origin=None, history=None, communication=None):
         resource = uav_id if isinstance(uav_id, str) and 1 <= len(uav_id) <= 128 else None
         action = action if isinstance(action, str) and 1 <= len(action) <= 128 else "invalid_action"
         result = None
@@ -92,6 +105,8 @@ class PolicyEngine:
                     ON CONFLICT(name) DO UPDATE SET configuration_json=excluded.configuration_json,
                         version=policies.version + 1, updated_at=CURRENT_TIMESTAMP
                 """, ("mission_area:" + resource, configuration))
+            if decision.allowed and communication is not None:
+                result = read_communication(db, resource, int(self.auth.clock() * 1000000), *communication)
             if decision.allowed and history is not None:
                 result = query_history(db, resource, history)
             if decision.allowed and read:
@@ -143,7 +158,11 @@ def main():
     parser.add_argument("--to-time")
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--cursor")
+    parser.add_argument("--read-communication", action="store_true")
+    parser.add_argument("--before", help="JSON array [occurred_at_us,event_id] from next_before")
     args = parser.parse_args()
+    if args.read_communication and (args.action != "status.read" or args.read_history or args.read_telemetry):
+        parser.error("--read-communication requires status.read and no other read mode")
     if args.read_history and (args.action != "telemetry.read" or args.read_telemetry
                               or not args.from_time or not args.to_time):
         parser.error("--read-history requires telemetry.read, --from-time and --to-time")
@@ -157,6 +176,11 @@ def main():
     token = None
     try:
         token = engine.auth.login(args.username, getpass("Account password: "))
+        if args.read_communication:
+            before = json.loads(args.before) if args.before else None
+            result = engine.communication_status(token, args.uav_id, limit=args.limit, before=before)
+            print(json.dumps({"uav_id": args.uav_id, **result}, indent=2))
+            return 0
         if args.read_history:
             result = engine.read_history(token, args.uav_id, args.from_time, args.to_time,
                                          limit=args.limit, cursor=args.cursor)

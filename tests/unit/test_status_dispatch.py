@@ -90,6 +90,8 @@ class StatusDispatchTest(unittest.TestCase):
         self.assertIsNone(self.dispatcher.dispatch_one())
         self.sender.assert_not_called()
         with closing(connect_database(self.path)) as db, db:
+            db.execute("DROP TABLE communication_events")
+            db.execute("DROP TABLE communication_state")
             db.execute("DROP TABLE telemetry_records")
             db.execute("DROP TABLE command_requests")
             db.execute("PRAGMA user_version=3")
