@@ -65,7 +65,8 @@ class SigningVerifier:
 class SignedTelemetryReceiver:
     """Filter live telemetry before the collector writes or forwards it."""
 
-    def __init__(self, receiver, verifier, system_id):
+    def __init__(self, receiver, verifier, system_id, *, on_event=None):
+        self.on_event = on_event
         self.receiver = receiver
         self.verifier = verifier
         self.system_id = system_id
@@ -76,6 +77,11 @@ class SignedTelemetryReceiver:
         message = self.receiver.recv_match(**kwargs)
         if message is None:
             return None
+        if message.get_type() == "BAD_DATA":
+            if self.on_event is not None:
+                self.on_event("mavlink_signing", "mavlink_parse_rejected", severity="medium", outcome="deny",
+                              details={"reason": "bad_data"})
+            return None
         if (message.get_type() not in TELEMETRY_TYPES
                 or message.get_srcSystem() != self.system_id
                 or message.get_srcComponent() != 1):
@@ -83,6 +89,11 @@ class SignedTelemetryReceiver:
         reason = self.verifier.verify(bytes(message.get_msgbuf()))
         if reason is not None:
             self.rejected[reason] = self.rejected.get(reason, 0) + 1
+            if self.on_event is not None:
+                category = ("replay" if reason == "replay_or_out_of_order" else
+                            "freshness" if reason == "timestamp_outside_window" else "mavlink_signing")
+                self.on_event(category, "mavlink_rejected", severity="medium", outcome="deny",
+                              details={"reason": reason, "system_id": self.system_id})
             if self.rejected[reason] == 1:
                 LOGGER.warning("mavlink_rejected category=%s system_id=%d", reason, self.system_id)
             return None
@@ -94,5 +105,8 @@ class SignedTelemetryReceiver:
             self.receiver.close()
         finally:
             self.verifier.close()
+            if self.on_event is not None:
+                self.on_event("mavlink_signing", "signing_summary", outcome="info",
+                              details={"accepted": self.accepted, "rejected_total": sum(self.rejected.values())})
             LOGGER.info("mavlink_signing_summary accepted=%d rejected=%s",
                         self.accepted, self.rejected)

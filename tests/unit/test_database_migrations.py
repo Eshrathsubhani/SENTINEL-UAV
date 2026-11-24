@@ -40,7 +40,7 @@ class DatabaseMigrationTest(unittest.TestCase):
             self.assertTrue(all(contents(db)[table] == rows for table, rows in before.items()))
             self.assertTrue(set(tuple(r) for r in schema).issubset(
                 set(tuple(r) for r in db.execute("SELECT name, sql FROM sqlite_master ORDER BY name"))))
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 7)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 8)
             self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
             self.assertEqual(db.execute("PRAGMA foreign_key_check").fetchall(), [])
 
@@ -65,7 +65,7 @@ class DatabaseMigrationTest(unittest.TestCase):
                 with closing(connect_database(self.path)) as db:
                     after = contents(db)
                     self.assertTrue(all(after[table] == rows for table, rows in before.items()))
-                    self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 7)
+                    self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 8)
                     self.assertEqual(db.execute("PRAGMA foreign_key_check").fetchall(), [])
                     self.assertIn("command_requests", after)
                     self.assertIn("telemetry_snapshots", after)

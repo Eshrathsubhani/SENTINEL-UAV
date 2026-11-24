@@ -18,6 +18,7 @@ from backend.commands.status_request import MAVLinkStatusSender, StatusDispatche
 from gateways.gcs_gateway import open_listener, receive_telemetry
 from gateways.uav_gateway import send_telemetry
 from security.credential_audit import audit_credentials
+from security.event_sink import SecurityEventSink
 from security.identity.gateway_registry import RegistryGuard
 from security.mavlink_signing import SignedTelemetryReceiver, SigningVerifier
 from security.tls_context import client_context, server_context
@@ -58,7 +59,7 @@ def live_record(message, received_at, uav_identity, signing_key_id=None):
     return record
 
 
-def record_credential_config(args, signing_key_id=None):
+def record_credential_config(args, signing_key_id=None, *, on_event=None):
     if args.credential_audit_db is None:
         return
     credentials = {
@@ -67,10 +68,12 @@ def record_credential_config(args, signing_key_id=None):
     }
     if signing_key_id is not None:
         credentials["mavlink_signing_key"] = signing_key_id
-    audit_credentials(args.credential_audit_db, args.role, credentials)
+    audit_credentials(args.credential_audit_db, args.role, credentials, on_event=on_event)
 
 
 def run_uav(args, context):
+    event_database = getattr(args, "security_event_database", None)
+    event_sink = SecurityEventSink(event_database, "uav_gateway") if event_database is not None else None
     pending = Queue(maxsize=32)
     done = Event()
     stats = dict(enqueued=0, queue_drops=0, stale_drops=0, unacknowledged=0, acknowledged=0)
@@ -124,12 +127,12 @@ def run_uav(args, context):
         except (OSError, ValueError, sqlite3.Error):
             receiver.close()
             raise
-        receiver = SignedTelemetryReceiver(receiver, verifier, args.system_id)
+        receiver = SignedTelemetryReceiver(receiver, verifier, args.system_id, on_event=event_sink)
         LOGGER.info("mavlink_signing_required system_id=%d", args.system_id)
     else:
         LOGGER.info("mavlink_signing_disabled")
     try:
-        record_credential_config(args, verifier.key_id if args.signing_key_file else None)
+        record_credential_config(args, verifier.key_id if args.signing_key_file else None, on_event=event_sink)
         if args.command_database is not None:
             sender = MAVLinkStatusSender(connection, verifier.key)
             dispatcher = StatusDispatcher(
@@ -158,10 +161,12 @@ def run_uav(args, context):
 
 
 def run_gcs(args, context):
+    event_database = getattr(args, "security_event_database", None) or args.identity_database
+    event_sink = SecurityEventSink(event_database, "gcs_gateway") if event_database is not None else None
     guard = RegistryGuard(args.identity_database, heartbeat_timeout=args.heartbeat_timeout) if args.identity_database is not None else None
     args.received.parent.mkdir(parents=True, exist_ok=True)
     with open_listener(args.tls_port) as listener, args.received.open("a", encoding="utf-8") as output:
-        record_credential_config(args)
+        record_credential_config(args, on_event=event_sink)
         if guard is not None:
             LOGGER.info("gcs_registry_required schema_version=3")
         LOGGER.info("gcs_listening port=%d", args.tls_port)
@@ -177,7 +182,7 @@ def run_gcs(args, context):
                 guard.check_heartbeat_timeouts()
             try:
                 receive_telemetry(listener, context, args.uav_identity, timeout=1.5,
-                                  on_record=persist, required_schema=3 if guard else 2, record_guard=guard)
+                                  on_record=persist, required_schema=3 if guard else 2, record_guard=guard, on_event=event_sink)
             except socket.timeout:
                 continue
 
@@ -203,6 +208,7 @@ def main():
     parser.add_argument("--signing-state", type=Path)
     parser.add_argument("--credential-audit-db", type=Path)
     parser.add_argument("--identity-database", type=Path)
+    parser.add_argument("--security-event-database", type=Path)
     parser.add_argument("--registry-records", action="store_true")
     parser.add_argument("--command-database", type=Path)
     args = parser.parse_args()

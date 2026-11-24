@@ -6,6 +6,7 @@ from getpass import getpass
 from hashlib import sha256
 from pathlib import Path
 import re
+import logging
 import secrets
 import time
 from uuid import uuid4
@@ -81,20 +82,32 @@ class AuthService:
     def administrator_transaction(self, token, action, target_id=None):
         reason = "allowed"
         actor = None
-        with self._transaction() as db:
-            try:
-                actor = _principal(db, _token_hash(token), int(self.clock()))
-            except AuthenticationError:
-                reason = "invalid_session"
-            if actor is not None and actor["role_name"] != "Administrator":
-                reason = "role_denied"
-            db.execute("""
-                INSERT INTO authorization_events (actor_id, target_id, action, decision, reason)
-                VALUES (?, ?, ?, ?, ?)
-            """, (actor["user_id"] if actor else None, target_id, action,
-                  "allow" if reason == "allowed" else "deny", reason))
-            if reason == "allowed":
-                yield db, actor
+        try:
+            with self._transaction() as db:
+                try:
+                    actor = _principal(db, _token_hash(token), int(self.clock()))
+                except AuthenticationError:
+                    reason = "invalid_session"
+                if actor is not None and actor["role_name"] != "Administrator":
+                    reason = "role_denied"
+                db.execute("""
+                    INSERT INTO authorization_events (actor_id, target_id, action, decision, reason)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (actor["user_id"] if actor else None, target_id, action,
+                      "allow" if reason == "allowed" else "deny", reason))
+                if reason == "allowed":
+                    yield db, actor
+        except Exception as error:
+            # The mutation already rolled back. Record a bounded failure event
+            # separately; never log exception text that may include user input.
+            if reason == "allowed" and actor is not None:
+                try:
+                    with self._transaction() as db:
+                        _event(db, actor["user_id"], target_id, "administrative_action_failed",
+                               action + ":" + type(error).__name__)
+                except Exception:
+                    logging.getLogger(__name__).error("administrative_failure_audit_unavailable")
+            raise
         if reason != "allowed":
             raise AuthenticationError(reason)
 

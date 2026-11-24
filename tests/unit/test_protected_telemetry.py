@@ -78,6 +78,9 @@ class ProtectedTelemetryTest(unittest.TestCase):
 
     def test_schema_two_upgrade_preserves_identity_and_assignments(self):
         with closing(connect_database(self.path)) as db, db:
+            for trigger in db.execute("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'security_project_%'").fetchall():
+                db.execute('DROP TRIGGER "' + trigger[0] + '"')
+            db.execute("DROP TABLE security_events")
             db.execute("DROP TABLE communication_events")
             db.execute("DROP TABLE communication_state")
             db.execute("DROP TABLE telemetry_records")
@@ -87,5 +90,5 @@ class ProtectedTelemetryTest(unittest.TestCase):
         initialize_database(self.path)
         self.assertEqual(self.engine.read_telemetry(self.admin, self.uav), [])
         with closing(connect_database(self.path)) as db:
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 7)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 8)
             self.assertEqual(db.execute("SELECT COUNT(*) FROM uav_assignments").fetchone()[0], 1)

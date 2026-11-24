@@ -90,6 +90,9 @@ class StatusDispatchTest(unittest.TestCase):
         self.assertIsNone(self.dispatcher.dispatch_one())
         self.sender.assert_not_called()
         with closing(connect_database(self.path)) as db, db:
+            for trigger in db.execute("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'security_project_%'").fetchall():
+                db.execute('DROP TRIGGER "' + trigger[0] + '"')
+            db.execute("DROP TABLE security_events")
             db.execute("DROP TABLE communication_events")
             db.execute("DROP TABLE communication_state")
             db.execute("DROP TABLE telemetry_records")

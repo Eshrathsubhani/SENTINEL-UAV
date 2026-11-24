@@ -121,7 +121,12 @@ def version_7(connection):
     connection.execute("CREATE INDEX communication_uav_time ON communication_events(uav_id,occurred_at_us,event_id)")
 
 
-MIGRATIONS = (version_1, version_2, version_3, version_4, version_5, version_6, version_7)
+def version_8(connection):
+    from database.security_schema_v8 import install_schema
+    install_schema(connection)
+
+
+MIGRATIONS = (version_1, version_2, version_3, version_4, version_5, version_6, version_7, version_8)
 SCHEMA_VERSION = len(MIGRATIONS)
 
 

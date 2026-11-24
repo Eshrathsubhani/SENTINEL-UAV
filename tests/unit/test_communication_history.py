@@ -196,13 +196,16 @@ class CommunicationHistoryTest(unittest.TestCase):
         self.heartbeat()
         with closing(connect_database(self.path)) as db, db:
             before = tuple(db.execute("SELECT * FROM telemetry_records").fetchone())
+            for trigger in db.execute("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'security_project_%'").fetchall():
+                db.execute('DROP TRIGGER "' + trigger[0] + '"')
+            db.execute("DROP TABLE security_events")
             db.execute("DROP TABLE communication_events")
             db.execute("DROP TABLE communication_state")
             db.execute("PRAGMA user_version=6")
         initialize_database(self.path)
         with closing(connect_database(self.path)) as db:
             self.assertEqual(tuple(db.execute("SELECT * FROM telemetry_records").fetchone()), before)
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 7)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 8)
             self.assertEqual(db.execute("PRAGMA foreign_key_check").fetchall(), [])
         self.assertEqual(self.status()["state"], "unknown")
 
@@ -210,6 +213,9 @@ class CommunicationHistoryTest(unittest.TestCase):
         from database import migrations
         from unittest.mock import patch
         with closing(connect_database(self.path)) as db, db:
+            for trigger in db.execute("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'security_project_%'").fetchall():
+                db.execute('DROP TRIGGER "' + trigger[0] + '"')
+            db.execute("DROP TABLE security_events")
             db.execute("DROP TABLE communication_events")
             db.execute("DROP TABLE communication_state")
             db.execute("PRAGMA user_version=6")
