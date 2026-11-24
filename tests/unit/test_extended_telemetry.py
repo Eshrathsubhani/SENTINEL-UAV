@@ -161,7 +161,7 @@ class ExtendedTelemetryTest(unittest.TestCase):
             initialize_database(path)
             with closing(connect_database(path)) as db:
                 self.assertEqual(tuple(db.execute("SELECT * FROM telemetry_records").fetchone()), before)
-                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 8)
+                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 9)
                 self.assertEqual(db.execute("PRAGMA foreign_key_check").fetchall(), [])
                 self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
                 self.assertIn("telemetry_uav_time", {row[1] for row in db.execute("PRAGMA index_list(telemetry_records)")})

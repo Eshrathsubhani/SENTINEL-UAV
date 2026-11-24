@@ -58,10 +58,13 @@ def insert_record(db, uav_id, record, received_at_us):
     return "inserted"
 
 
-def query_history(db, uav_id, filters):
+def query_history(db, uav_id, filters, *, mission_id=None):
     start, end, limit, after = filters
     sql = "SELECT * FROM telemetry_records WHERE uav_id=? AND captured_at_us>=? AND captured_at_us<?"
     parameters = [uav_id, start, end]
+    if mission_id is not None:
+        sql += " AND EXISTS (SELECT 1 FROM mission_telemetry mt WHERE mt.record_id=telemetry_records.record_id AND mt.mission_id=?)"
+        parameters.append(mission_id)
     if after:
         sql += " AND (captured_at_us,record_id) > (?,?)"
         parameters.extend(after)

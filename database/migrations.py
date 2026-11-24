@@ -126,7 +126,12 @@ def version_8(connection):
     install_schema(connection)
 
 
-MIGRATIONS = (version_1, version_2, version_3, version_4, version_5, version_6, version_7, version_8)
+def version_9(connection):
+    from database.mission_schema_v9 import install_schema
+    install_schema(connection)
+
+
+MIGRATIONS = (version_1, version_2, version_3, version_4, version_5, version_6, version_7, version_8, version_9)
 SCHEMA_VERSION = len(MIGRATIONS)
 
 

@@ -12,6 +12,13 @@ from security.authorization.mission_policy import mission_reason, valid_coordina
 from security.authentication.auth_service import AuthService, AuthenticationError, _principal, _token_hash
 
 ACTIONS = {
+    "mission.record.create": "command.request",
+    "mission.record.start": "command.request",
+    "mission.record.complete": "command.request",
+    "mission.record.abort": "command.request",
+    "mission.record.cancel": "command.request",
+    "mission.record.read": "status.read",
+    "mission.record.telemetry": "telemetry.read",
     "telemetry.read": "telemetry.read",
     "status.read": "status.read",
     "command.rtl": "command.request",
