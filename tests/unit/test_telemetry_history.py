@@ -135,4 +135,4 @@ class TelemetryHistoryTest(unittest.TestCase):
         self.assertEqual(self.read()["telemetry"], [])
         self.assertEqual(len(self.engine.read_telemetry(self.token, "fixture-uav")), 1)
         with closing(connect_database(self.path)) as db:
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 9)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 10)

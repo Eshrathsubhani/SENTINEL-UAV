@@ -56,7 +56,7 @@ class MissionMigrationTest(unittest.TestCase):
             self.assertEqual(
                 db.execute("SELECT COUNT(*) FROM mission_telemetry").fetchone()[0], 0
             )
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 9)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 10)
             self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
             self.assertEqual(db.execute("PRAGMA foreign_key_check").fetchall(), [])
 

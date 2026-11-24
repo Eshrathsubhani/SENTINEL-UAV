@@ -92,6 +92,10 @@ class StatusDispatchTest(unittest.TestCase):
         with closing(connect_database(self.path)) as db, db:
             for trigger in db.execute("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'security_project_%'").fetchall():
                 db.execute('DROP TRIGGER "' + trigger[0] + '"')
+            db.execute("DROP TABLE incident_event_links")
+            db.execute("DROP TABLE incident_notes")
+            db.execute("DROP TABLE incident_history")
+            db.execute("DROP TABLE incidents")
             db.execute("DROP TRIGGER mission_link_accepted_telemetry")
             db.execute("DROP TABLE mission_telemetry")
             db.execute("DROP TABLE mission_events")

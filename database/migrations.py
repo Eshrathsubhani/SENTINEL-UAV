@@ -131,7 +131,12 @@ def version_9(connection):
     install_schema(connection)
 
 
-MIGRATIONS = (version_1, version_2, version_3, version_4, version_5, version_6, version_7, version_8, version_9)
+def version_10(connection):
+    from database.incident_schema_v10 import install_schema
+    install_schema(connection)
+
+
+MIGRATIONS = (version_1, version_2, version_3, version_4, version_5, version_6, version_7, version_8, version_9, version_10)
 SCHEMA_VERSION = len(MIGRATIONS)
 
 
