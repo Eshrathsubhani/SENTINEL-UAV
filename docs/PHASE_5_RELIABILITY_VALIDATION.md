@@ -57,8 +57,8 @@ guarantees, or application authorization under load.
 
 ## Evidence
 
-- datasets/sitl_generated/phase5_validation/database-read-benchmark-20261124T210511362736Z.json
-- datasets/sitl_generated/phase5_validation/database-concurrency-20261124T210957789000Z.json
+- docs/evidence/phase5/database-read-benchmark-20261124T210511362736Z.json
+- docs/evidence/phase5/database-concurrency-20261124T210957789000Z.json
 
 ## Remaining closeout work
 

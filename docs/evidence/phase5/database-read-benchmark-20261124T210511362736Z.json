@@ -1,0 +1,47 @@
+{
+  "measured_at_utc": "2026-11-24T21:05:11.355634+00:00",
+  "python_version": "3.12.3",
+  "sqlite_version": "3.45.1",
+  "schema_version": 10,
+  "database_rows": {
+    "telemetry_records": 13771,
+    "security_events": 14440,
+    "missions": 1,
+    "incidents": 1
+  },
+  "method": "Read-only restored copy; 20 warmups and 200 samples per query; connection setup and authorization excluded; local cached reads",
+  "measurements": {
+    "telemetry_history": {
+      "samples": 200,
+      "rows_per_query": 100,
+      "p50_ms": 0.17371,
+      "p95_ms": 0.267291,
+      "p99_ms": 0.376143,
+      "max_ms": 0.626052
+    },
+    "security_events": {
+      "samples": 200,
+      "rows_per_query": 100,
+      "p50_ms": 0.194107,
+      "p95_ms": 0.246464,
+      "p99_ms": 0.270161,
+      "max_ms": 0.315484
+    },
+    "mission_history": {
+      "samples": 200,
+      "rows_per_query": 1,
+      "p50_ms": 0.012858,
+      "p95_ms": 0.015115,
+      "p99_ms": 0.031978,
+      "max_ms": 0.04604
+    },
+    "resolved_incidents": {
+      "samples": 200,
+      "rows_per_query": 1,
+      "p50_ms": 0.01252,
+      "p95_ms": 0.014186,
+      "p99_ms": 0.028973,
+      "max_ms": 0.068155
+    }
+  }
+}

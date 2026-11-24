@@ -1,0 +1,59 @@
+{
+  "measured_at_utc": "2026-11-24T21:09:57.785180+00:00",
+  "result": "PASS",
+  "method": "Disposable restored copy; 2 writers updating synthetic counters and 4 readers querying telemetry; 100 operations per worker; not application authorization or production throughput",
+  "total_operations": 600,
+  "committed_counter_updates": 200,
+  "telemetry_rows": 13771,
+  "elapsed_s": 2.042628895,
+  "workers": [
+    {
+      "worker_id": 0,
+      "writer": true,
+      "operations": 100,
+      "p50_ms": 6.292806,
+      "p95_ms": 8.139946,
+      "max_ms": 41.127314
+    },
+    {
+      "worker_id": 1,
+      "writer": true,
+      "operations": 100,
+      "p50_ms": 6.503601,
+      "p95_ms": 7.690563,
+      "max_ms": 776.908243
+    },
+    {
+      "worker_id": 2,
+      "writer": false,
+      "operations": 100,
+      "p50_ms": 0.159894,
+      "p95_ms": 0.248938,
+      "max_ms": 630.620708
+    },
+    {
+      "worker_id": 3,
+      "writer": false,
+      "operations": 100,
+      "p50_ms": 5.98529,
+      "p95_ms": 9.88279,
+      "max_ms": 758.668792
+    },
+    {
+      "worker_id": 4,
+      "writer": false,
+      "operations": 100,
+      "p50_ms": 5.41648,
+      "p95_ms": 10.295706,
+      "max_ms": 1438.960597
+    },
+    {
+      "worker_id": 5,
+      "writer": false,
+      "operations": 100,
+      "p50_ms": 5.479893,
+      "p95_ms": 8.611549,
+      "max_ms": 755.937455
+    }
+  ]
+}
