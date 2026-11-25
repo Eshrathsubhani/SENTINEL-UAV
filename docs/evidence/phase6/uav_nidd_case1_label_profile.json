@@ -1,0 +1,73 @@
+{
+  "dataset": "UAV-NIDD",
+  "archive_member": "UAV-NDD CSV/UAV-Case1-Label.csv",
+  "profiled_at_utc": "2026-11-25T12:03:07.842377+00:00",
+  "inspection_decoding": "Latin-1 reversible byte mapping; original encoding unverified",
+  "column_count": 45,
+  "nonempty_data_records": 885384,
+  "well_formed_records": 860652,
+  "malformed_width_records": 24732,
+  "row_width_counts": {
+    "45": 860652,
+    "4": 2437,
+    "1": 13225,
+    "3": 913,
+    "2": 7809,
+    "5": 348
+  },
+  "non_ascii_label_records": 0,
+  "label_counts": [
+    {
+      "label": "Normal",
+      "rows": 17949
+    },
+    {
+      "label": "ICMP Flooding",
+      "rows": 47544
+    },
+    {
+      "label": "UDP Flooding",
+      "rows": 152775
+    },
+    {
+      "label": "DoS",
+      "rows": 6424
+    },
+    {
+      "label": "Scanning",
+      "rows": 9030
+    },
+    {
+      "label": "Reconnassiance",
+      "rows": 6
+    },
+    {
+      "label": "BruteForce",
+      "rows": 175925
+    },
+    {
+      "label": "MITM",
+      "rows": 151586
+    },
+    {
+      "label": "De-authentication",
+      "rows": 14606
+    },
+    {
+      "label": "FakeLanding",
+      "rows": 24050
+    },
+    {
+      "label": "replay",
+      "rows": 25977
+    },
+    {
+      "label": "Jamming",
+      "rows": 41600
+    },
+    {
+      "label": "DDoS",
+      "rows": 193180
+    }
+  ]
+}

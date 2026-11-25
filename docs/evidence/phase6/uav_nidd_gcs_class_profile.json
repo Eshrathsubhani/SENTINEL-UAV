@@ -1,0 +1,66 @@
+{
+  "dataset": "UAV-NIDD",
+  "archive_member": "UAV-NDD CSV/GSC Case3 Label .csv",
+  "actual_format": "Excel workbook",
+  "sheet": "Dataset-UAV-GCS",
+  "profiled_at_utc": "2026-11-25T12:35:22.830563+00:00",
+  "class_cells_inspected": 823632,
+  "blank_class_cells": 0,
+  "class_counts": [
+    {
+      "value_type": "str",
+      "label": "Benign",
+      "rows": 109
+    },
+    {
+      "value_type": "str",
+      "label": "Reconnaissance",
+      "rows": 14329
+    },
+    {
+      "value_type": "str",
+      "label": "Bruteforce",
+      "rows": 10161
+    },
+    {
+      "value_type": "str",
+      "label": "Evil Twin",
+      "rows": 142
+    },
+    {
+      "value_type": "str",
+      "label": "MITM",
+      "rows": 3312
+    },
+    {
+      "value_type": "str",
+      "label": "Scanning",
+      "rows": 44552
+    },
+    {
+      "value_type": "str",
+      "label": "Fake Landing ",
+      "rows": 298
+    },
+    {
+      "value_type": "str",
+      "label": "De-authentication",
+      "rows": 1321
+    },
+    {
+      "value_type": "str",
+      "label": "DoS",
+      "rows": 556285
+    },
+    {
+      "value_type": "str",
+      "label": "DDoS",
+      "rows": 192826
+    },
+    {
+      "value_type": "str",
+      "label": "Fake Landing",
+      "rows": 297
+    }
+  ]
+}
