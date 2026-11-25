@@ -1,0 +1,30 @@
+{
+  "runs": [
+    {
+      "run_id": "78a05f5fca2e4236a96221b5259cce70",
+      "hashes_and_record_accounting": "PASS",
+      "source_records": 1169,
+      "acknowledged": 976,
+      "suppressed": 193,
+      "utc_backward_steps": 3,
+      "elapsed_backward_steps": 0,
+      "monotonic_span_s": 89.80626518300005,
+      "utc_span_s": 87.70899105072021,
+      "utc_minus_monotonic_span_s": -2.0972741322798356,
+      "training_acceptance": "PENDING_REVIEW"
+    },
+    {
+      "run_id": "a3c8e0a7f6484d1b9caf45ed6385e8a3",
+      "hashes_and_record_accounting": "PASS",
+      "source_records": 1161,
+      "acknowledged": 1161,
+      "suppressed": 0,
+      "utc_backward_steps": 2,
+      "elapsed_backward_steps": 0,
+      "monotonic_span_s": 89.1706316719999,
+      "utc_span_s": 88.16719508171082,
+      "utc_minus_monotonic_span_s": -1.003436590289084,
+      "training_acceptance": "PENDING_REVIEW"
+    }
+  ]
+}
