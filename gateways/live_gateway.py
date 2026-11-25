@@ -24,6 +24,7 @@ from security.mavlink_signing import SignedTelemetryReceiver, SigningVerifier
 from security.tls_context import client_context, server_context
 from simulator.mavlink_adapter import normalize, open_receiver
 from simulator.telemetry_collector import collect
+from simulator.experiment_run import ExperimentRun
 
 LOGGER = logging.getLogger(__name__)
 RECORD_MAX_AGE_S = 3.0
@@ -71,7 +72,16 @@ def record_credential_config(args, signing_key_id=None, *, on_event=None):
     audit_credentials(args.credential_audit_db, args.role, credentials, on_event=on_event)
 
 
-def run_uav(args, context):
+def run_uav(args, context, *, experiment=None):
+    if experiment is not None:
+        experiment.configuration = {
+            "system_id": args.system_id, "port": args.port,
+            "tls_port": args.tls_port, "server_name": args.server_name,
+            "strict_signing": args.signing_key_file is not None,
+            "registry_records": args.registry_records,
+            "duration_limit_s": args.seconds,
+            "heartbeat_timeout_s": args.heartbeat_timeout,
+        }
     event_database = getattr(args, "security_event_database", None)
     event_sink = SecurityEventSink(event_database, "uav_gateway") if event_database is not None else None
     pending = Queue(maxsize=32)
@@ -79,19 +89,28 @@ def run_uav(args, context):
     stats = dict(enqueued=0, queue_drops=0, stale_drops=0, unacknowledged=0, acknowledged=0)
     timings = deque(maxlen=4096)
 
+    worker_errors = []
     dispatcher = None
 
     def enqueue(message, received_at):
+        if worker_errors:
+            raise RuntimeError("Forwarding worker failed; experiment is incomplete") from worker_errors[0]
         if dispatcher is not None and message.get_type() == "HEARTBEAT":
             dispatcher.dispatch_one()
         record = live_record(
             message, received_at, args.uav_identity,
             verifier.key_id if args.registry_records else None,
         )
+        if experiment is not None:
+            experiment.event("source_record", record=record)
+            if experiment.suppress(record):
+                return
         try:
             pending.put_nowait((monotonic(), record))
         except Full:
             stats["queue_drops"] += 1
+            if experiment is not None:
+                experiment.event("queue_drop", record=record)
         else:
             stats["enqueued"] += 1
 
@@ -104,11 +123,16 @@ def run_uav(args, context):
                 continue
             if monotonic() - enqueued_at >= RECORD_MAX_AGE_S:
                 stats["stale_drops"] += 1
+                if experiment is not None:
+                    experiment.event("stale_drop", record=record)
                 continue
             try:
                 timing = send_telemetry(context, args.tls_port, args.server_name, record, timeout=1.5)
             except (OSError, ValueError) as error:
                 stats["unacknowledged"] += 1
+                if experiment is not None:
+                    experiment.event("forwarding_unacknowledged", record=record,
+                                     error_type=type(error).__name__)
                 if not disconnected:
                     LOGGER.warning("forwarding_unavailable reason=%s", type(error).__name__)
                 disconnected = True
@@ -117,6 +141,8 @@ def run_uav(args, context):
                     LOGGER.info("forwarding_resumed")
                 disconnected = False
                 stats["acknowledged"] += 1
+                if experiment is not None:
+                    experiment.event("forwarding_acknowledged", record=record)
                 timings.append(timing)
 
     receiver = open_receiver(args.port)
@@ -142,14 +168,30 @@ def run_uav(args, context):
     except (OSError, sqlite3.Error):
         receiver.close()
         raise
-    worker = Thread(target=forward, name="telemetry-sender")
+    def guarded_forward():
+        try:
+            forward()
+        except BaseException as error:
+            worker_errors.append(error)
+            done.set()
+
+    worker = Thread(target=guarded_forward, name="telemetry-sender")
     worker.start()
+    status = "error"
     try:
-        return collect(receiver, args.output / uuid4().hex, args, on_live_telemetry=enqueue)
+        identity = experiment.run_id if experiment is not None else uuid4().hex
+        result = collect(receiver, args.output / identity, args, on_live_telemetry=enqueue,
+                         on_run_started=experiment.start if experiment is not None else None)
+        status = "collector_returned" if result == 0 else "no_matching_heartbeat"
+        return result
     finally:
         done.set()
         worker.join()
         receiver.close()
+        if experiment is not None:
+            experiment.finish("worker_error" if worker_errors else status, stats)
+        if worker_errors:
+            raise RuntimeError("Forwarding worker failed") from worker_errors[0]
         LOGGER.info("forwarding_summary %s", json.dumps(stats, sort_keys=True))
         if timings:
             for label, samples in zip(("tls_handshake", "record_ack_round_trip"), zip(*timings)):
@@ -211,7 +253,31 @@ def main():
     parser.add_argument("--security-event-database", type=Path)
     parser.add_argument("--registry-records", action="store_true")
     parser.add_argument("--command-database", type=Path)
+    parser.add_argument("--experiment-parent-group")
+    parser.add_argument("--source-revision")
+    parser.add_argument("--interrupt-at", type=float)
+    parser.add_argument("--interrupt-for", type=float)
     args = parser.parse_args()
+    experiment = None
+    requested = any(value is not None for value in (
+        args.experiment_parent_group, args.source_revision,
+        args.interrupt_at, args.interrupt_for,
+    ))
+    if requested:
+        if not (args.role == "uav" and args.registry_records
+                and args.signing_key_file is not None and args.signing_state is not None):
+            parser.error("Experiments require UAV mode, registry records and persistent strict signing.")
+        if args.command_database is not None:
+            parser.error("Experiments cannot dispatch vehicle commands.")
+        try:
+            experiment = ExperimentRun(args.experiment_parent_group, args.scenario,
+                                       args.source_revision, args.simulator_revision,
+                                       interrupt_at=args.interrupt_at,
+                                       interrupt_for=args.interrupt_for)
+        except ValueError as error:
+            parser.error(str(error))
+        if args.interrupt_at is not None and args.interrupt_at + args.interrupt_for >= args.seconds:
+            parser.error("Interruption must end before collection ends, leaving recovery time.")
     if (args.signing_key_file is None) != (args.signing_state is None):
         parser.error("Signing requires both a raw key file and a persistent state path.")
     if args.role == "gcs" and args.signing_key_file is not None:
@@ -231,10 +297,10 @@ def main():
     try:
         if args.role == "gcs":
             return run_gcs(args, server_context(**credentials))
-        return run_uav(args, client_context(**credentials))
+        return run_uav(args, client_context(**credentials), experiment=experiment)
     except KeyboardInterrupt:
         return 0
-    except (OSError, ValueError, sqlite3.Error) as error:
+    except (OSError, ValueError, sqlite3.Error, RuntimeError) as error:
         LOGGER.error("gateway_start_or_run_failed reason=%s errno=%s",
                      type(error).__name__, getattr(error, "errno", None))
         return 1

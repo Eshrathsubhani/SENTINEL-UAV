@@ -23,7 +23,7 @@ def utc_now():
     return datetime.now(timezone.utc).isoformat()
 
 
-def collect(receiver, destination, args, *, on_live_telemetry=None):
+def collect(receiver, destination, args, *, on_live_telemetry=None, on_run_started=None):
     """Record one SITL run and optionally publish accepted live telemetry.
 
     The callback receives a parsed message and its CSV receive timestamp.
@@ -41,6 +41,8 @@ def collect(receiver, destination, args, *, on_live_telemetry=None):
     }
     metadata = destination / "run.json"
     metadata.write_text(json.dumps(run, indent=2) + "\n", encoding="utf-8")
+    if on_run_started is not None:
+        on_run_started(destination, started)
     last_heartbeat = started
     last_flush = started
     connected = False
