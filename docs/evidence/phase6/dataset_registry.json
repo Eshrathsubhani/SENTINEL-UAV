@@ -1,0 +1,71 @@
+{
+  "registry_version": 1,
+  "reviewed_on": "2026-11-25",
+  "phase": "6.1",
+  "status": "preliminary_review",
+  "source_archive_commit": "4ddf66a9f66b8ee3bb2a542130a42cb76bc6cdcc",
+  "user_reported_doc_commit": "73a9446",
+  "datasets": [
+    {
+      "id": "sentinel_sitl",
+      "role": "primary_project_experiment",
+      "selected": true,
+      "raw_files_inspected_in_this_review": false,
+      "license_status": "project_owned_recordings_external_component_terms_separate",
+      "training_ready": false,
+      "run_ids_present_in_recorder_csv": true,
+      "run_ids_present_in_database_history": false,
+      "ground_truth_status": "new_scenario_manifest_and_independent_labels_required"
+    },
+    {
+      "id": "uav_nidd",
+      "role": "conditional_public_benchmark",
+      "selected": false,
+      "publisher_url": "https://github.com/CyberSaR-KAUST/UAV-Intrusion-Detection-Dataset",
+      "dataset_page": "https://zenodo.org/records/15125851",
+      "reported_release": "v1",
+      "paper_doi": "10.1109/TNSE.2025.3553442",
+      "license_status": "unverified",
+      "local_files": [],
+      "grouping_status": "unverified",
+      "label_schema_status": "publisher_categories_only"
+    },
+    {
+      "id": "shadow_gcs",
+      "role": "conditional_mavlink_benchmark",
+      "selected": false,
+      "publisher_url": "https://ocslab.hksecurity.net/Datasets/shadow-gcs-attack-dataset",
+      "reported_release": null,
+      "paper_doi": "10.1109/PRDC67299.2025.00014",
+      "license_status": "unverified",
+      "local_files": [],
+      "grouping_status": "unverified",
+      "label_schema_status": "unverified"
+    },
+    {
+      "id": "uavids_2025",
+      "role": "conditional_separate_flow_benchmark",
+      "selected": false,
+      "publisher_url": "https://github.com/QingliZeng/UAV--IDS2025",
+      "dataset_page": "https://zenodo.org/records/15336998",
+      "reported_release": "v1",
+      "paper_doi": "10.1109/CNS66487.2025.11194990",
+      "reported_record_count": 122171,
+      "publisher_label_names": [
+        "Normal Traffic",
+        "Blackhole Attack",
+        "Flooding Attack",
+        "Sybil Attack",
+        "Wormhole Attack"
+      ],
+      "license_status": "unverified_dataset_terms_code_MIT_is_separate",
+      "local_files": [],
+      "grouping_status": "no_independent_run_key_verified",
+      "leakage_review": [
+        "FlowID_class_order",
+        "scenario_identifiers",
+        "duplicate_flows"
+      ]
+    }
+  ]
+}
