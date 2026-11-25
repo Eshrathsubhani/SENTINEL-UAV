@@ -1,0 +1,831 @@
+{
+  "dataset": "UAV-NIDD",
+  "archive_sha256": "edc69bea34bd8fa096a1b69d05b7f6c078e92d2fba03cee19f1999399b7de6b1",
+  "member": "UAV-NDD CSV/Access Point Case2 Label.xlsx",
+  "profiled_at_utc": "2026-11-25T19:06:27.528528+00:00",
+  "nonempty_rows": 631356,
+  "fully_empty_rows": 0,
+  "columns": 51,
+  "exact_duplicate_rows_after_first": 117,
+  "candidate_label_header": "Normal",
+  "label_semantics_confirmed": false,
+  "candidate_label_counts": {
+    "Normal": 129541,
+    "Scanning": 70319,
+    "Reconnaissance": 40,
+    "De-authentication": 155564,
+    "Brute-Force": 172509,
+    "DoS": 23612,
+    "DDoS": 31612,
+    "Fake Landing": 24584,
+    "Replay": 8525,
+    "Ewil Twin": 10034,
+    "MITM": 5016
+  },
+  "column_profiles": [
+    {
+      "column": "frame.encap_type",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 1548
+    },
+    {
+      "column": "frame.len",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 23613
+    },
+    {
+      "column": "frame.number",
+      "missing": 0,
+      "types": {
+        "int": 607744,
+        "float": 23612
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 172509
+    },
+    {
+      "column": "frame.time_delta_displayed",
+      "missing": 0,
+      "types": {
+        "int": 181682,
+        "float": 449674
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 314.904894
+    },
+    {
+      "column": "frame.time_epoch",
+      "missing": 0,
+      "types": {
+        "int": 181682,
+        "float": 449674
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 1708538587.8855
+    },
+    {
+      "column": "frame.time_relative",
+      "missing": 0,
+      "types": {
+        "float": 399840,
+        "int": 231516
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 1709395518.14876
+    },
+    {
+      "column": "radiotap.channel.flags.cck",
+      "missing": 0,
+      "types": {
+        "int": 184813,
+        "float": 446543
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 3058.983104
+    },
+    {
+      "column": "radiotap.channel.flags.ofdm",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "column": "radiotap.channel.freq",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "column": "radiotap.datarate",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 2467
+    },
+    {
+      "column": "radiotap.dbm_antsignal",
+      "missing": 0,
+      "types": {
+        "int": 583177,
+        "float": 48179
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 1,
+      "max": 72.2222
+    },
+    {
+      "column": "radiotap.length",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": -100,
+      "max": 1
+    },
+    {
+      "column": "radiotap.mactime",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": -100,
+      "max": 13
+    },
+    {
+      "column": "radiotap.present.tsft",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 39
+    },
+    {
+      "column": "radiotap.rxflags",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 1510942035
+    },
+    {
+      "column": "radiotap.timestamp.ts",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "column": "radiotap.vendor_oui",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "column": "wlan.duration",
+      "missing": 0,
+      "types": {
+        "str": 630850,
+        "int": 506
+      },
+      "finite_numeric": 506,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "column": "wlan.fc.moredata",
+      "missing": 0,
+      "types": {
+        "str": 428235,
+        "int": 203121
+      },
+      "finite_numeric": 203121,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 0
+    },
+    {
+      "column": "wlan.fc.protected",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 0
+    },
+    {
+      "column": "wlan.fc.pwrmgt",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "column": "wlan.fc.type",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "column": "wlan.fc.retry",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 2
+    },
+    {
+      "column": "wlan.fc.subtype",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "column": "wlan.fcs.bad_checksum",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 13
+    },
+    {
+      "column": "wlan.seq",
+      "missing": 0,
+      "types": {
+        "int": 565145,
+        "str": 66211
+      },
+      "finite_numeric": 565145,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 8264
+    },
+    {
+      "column": "wlan_radio.data_rate",
+      "missing": 0,
+      "types": {
+        "int": 631301,
+        "str": 55
+      },
+      "finite_numeric": 631301,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 8264
+    },
+    {
+      "column": "wlan_radio.end_tsf",
+      "missing": 0,
+      "types": {
+        "int": 631301,
+        "str": 55
+      },
+      "finite_numeric": 631301,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 8264
+    },
+    {
+      "column": "eapol.keydes.replay_counter",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": -85,
+      "max": 966342889
+    },
+    {
+      "column": "arp",
+      "missing": 0,
+      "types": {
+        "int": 631356
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": -95,
+      "max": 973639473
+    },
+    {
+      "column": "ip.dst",
+      "missing": 0,
+      "types": {
+        "str": 53988,
+        "int": 577368
+      },
+      "finite_numeric": 577368,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": -79,
+      "max": 22
+    },
+    {
+      "column": "ip.proto",
+      "missing": 0,
+      "types": {
+        "int": 287519,
+        "str": 343837
+      },
+      "finite_numeric": 287519,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 5
+    },
+    {
+      "column": "ip.src",
+      "missing": 0,
+      "types": {
+        "int": 617075,
+        "str": 14281
+      },
+      "finite_numeric": 617075,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 17
+    },
+    {
+      "column": "ip.ttl",
+      "missing": 0,
+      "types": {
+        "int": 288595,
+        "str": 342761
+      },
+      "finite_numeric": 288595,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 121
+    },
+    {
+      "column": "data.len",
+      "missing": 0,
+      "types": {
+        "int": 596348,
+        "str": 35008
+      },
+      "finite_numeric": 596348,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 60020400
+    },
+    {
+      "column": "icmpv6.mldr.nb_mcast_records",
+      "missing": 0,
+      "types": {
+        "int": 631354,
+        "str": 2
+      },
+      "finite_numeric": 631354,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 1516
+    },
+    {
+      "column": "udp.dstport",
+      "missing": 0,
+      "types": {
+        "int": 389604,
+        "float": 241752
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 64
+    },
+    {
+      "column": "udp.srcport",
+      "missing": 0,
+      "types": {
+        "int": 624259,
+        "float": 7097
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 60962
+    },
+    {
+      "column": "udp.length",
+      "missing": 0,
+      "types": {
+        "int": 626249,
+        "float": 5107
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 65141
+    },
+    {
+      "column": "nbns",
+      "missing": 0,
+      "types": {
+        "int": 626241,
+        "float": 5115
+      },
+      "finite_numeric": 631356,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 58661
+    },
+    {
+      "column": "nbss.continuation_data",
+      "missing": 0,
+      "types": {
+        "int": 631068,
+        "str": 280,
+        "float": 8
+      },
+      "finite_numeric": 631076,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 59
+    },
+    {
+      "column": "dns",
+      "missing": 0,
+      "types": {
+        "int": 631179,
+        "str": 177
+      },
+      "finite_numeric": 631179,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 52
+    },
+    {
+      "column": "http.connection",
+      "missing": 0,
+      "types": {
+        "int": 631108,
+        "str": 248
+      },
+      "finite_numeric": 631108,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 16
+    },
+    {
+      "column": "http.content_length",
+      "missing": 0,
+      "types": {
+        "int": 631325,
+        "str": 31
+      },
+      "finite_numeric": 631325,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 16
+    },
+    {
+      "column": "http.content_type",
+      "missing": 0,
+      "types": {
+        "int": 631344,
+        "str": 12
+      },
+      "finite_numeric": 631344,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 39660
+    },
+    {
+      "column": "http.date",
+      "missing": 0,
+      "types": {
+        "int": 631344,
+        "str": 12
+      },
+      "finite_numeric": 631344,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 4
+    },
+    {
+      "column": "http.file_data",
+      "missing": 0,
+      "types": {
+        "int": 631334,
+        "str": 22
+      },
+      "finite_numeric": 631334,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 4
+    },
+    {
+      "column": "http.host",
+      "missing": 0,
+      "types": {
+        "int": 631334,
+        "str": 21,
+        "float": 1
+      },
+      "finite_numeric": 631335,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 5
+    },
+    {
+      "column": "http.last_modified",
+      "missing": 0,
+      "types": {
+        "int": 631087,
+        "str": 269
+      },
+      "finite_numeric": 631087,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 5
+    },
+    {
+      "column": "http.location",
+      "missing": 0,
+      "types": {
+        "int": 631345,
+        "str": 11
+      },
+      "finite_numeric": 631345,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": 0,
+      "max": 5
+    },
+    {
+      "column": "Normal",
+      "missing": 0,
+      "types": {
+        "str": 631356
+      },
+      "finite_numeric": 0,
+      "nonfinite_numeric": 0,
+      "numeric_text": 0,
+      "nonfinite_text": 0,
+      "excel_errors": 0,
+      "formulas": 0,
+      "min": null,
+      "max": null
+    }
+  ],
+  "limitations": [
+    "Exact duplicates include every column, including identifiers.",
+    "This does not establish independent capture or session groups.",
+    "Numeric ranges are observations, not domain-validity checks.",
+    "No cleaning, label mapping, splitting or training performed."
+  ]
+}
