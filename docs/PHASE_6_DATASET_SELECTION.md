@@ -1,6 +1,18 @@
 # Phase 6.1 — Dataset selection and compatibility review
 
-Status: Initial source/code review recorded; final public-dataset selection is pending.
+Status: Updated with user-executed UAV-NIDD acquisition evidence; final public-dataset selection is pending.
+
+## Acquisition update — 2026-11-25
+
+UAV-NIDD has now been downloaded, checksum/ZIP checked and its three cases
+initially inspected by the user. Its record Rights section was reported as
+CC BY 4.0. The Access Point case is the preferred supplementary candidate for
+further review; no public subset is training-approved. The GCS case has only
+109 Benign class cells, and the UAV CSV has an unresolved tail-like anomaly.
+See [the acquisition audit](PHASE_6_UAV_NIDD_AUDIT.md) and the version-2 source
+registry for exact evidence and limitations. Other datasets' licence/acquisition
+status remains unresolved. Source descriptions below reflect the initial review
+unless explicitly superseded by that audit.
 Review date: 2026-11-25.
 
 Phase 5 source baseline: `4ddf66a9f66b8ee3bb2a542130a42cb76bc6cdcc`.
@@ -43,13 +55,14 @@ An ML alert must not bypass or replace signing, replay, TLS or mission policy.
 
 ## Source register
 
-Publisher-described properties below have not been verified by downloading and
-profiling the underlying files. Exact file labels, versions, session grouping
-and licences remain acquisition gates.
+The table below summarizes initial publisher descriptions. The subsequent
+UAV-NIDD case inspections and Rights confirmation are recorded in the acquisition
+audit; full feature validation and run/session provenance remain open. Other
+candidates have not been acquired.
 
 | Source | Publisher-described content | Review outcome |
 |---|---|---|
-| UAV-NIDD | Physical testbed; benign and attack traffic; different feature sets for UAV/AP/GCS cases | First public source to inspect; no assumed common schema across its cases |
+| UAV-NIDD | Physical testbed; benign and attack traffic; different UAV/AP/GCS cases | Acquired; AP preferred for review; UAV case quarantined; cases must remain separate |
 | SHADOW-GCS | MAVLink relay/MITM scenarios; laboratory provides a download link | Protocol-relevant candidate; raw formats and licence unresolved |
 | UAVIDS-2025 | NS-3 flow dataset; 122,171 records, 22 feature columns and five classes | Separate flow benchmark only; grouping and feature compatibility unresolved |
 | SENTINEL SITL | Recorder CSV/run metadata and accepted gateway/database telemetry | Primary source chosen; labelled multi-run corpus not yet prepared |
@@ -75,7 +88,7 @@ including scanning, flooding, replay, MITM and GPS-related attacks. These are
 source descriptions, not verified CSV label strings or counts. The wording of
 attack totals varies with taxonomy; the actual mapping must be recorded after
 inspection. Access to documentation is not proof of permission to redistribute
-the data. No specific dataset licence is confirmed in this review.
+the data. Update: the user has since confirmed CC BY 4.0 in the record Rights section; see the acquisition audit.
 
 ### SHADOW-GCS
 
@@ -137,7 +150,9 @@ was inaccessible to the research tool. The SHADOW-GCS lab download destination
 was reached, but file contents were not inspected. A reachable landing page
 is not a verified successful dataset download.
 
-Specific dataset licences have not been established. Generic repository defaults
+At the initial metadata review, specific dataset licences had not been established.
+The subsequent UAV-NIDD Rights confirmation is recorded in the acquisition audit;
+licences for the other two public candidates remain unresolved. Generic repository defaults
 and metadata licences are not substitutes for file usage terms. Save the
 actual dataset licence/terms, version, citation and provenance before approving
 a public source. Request clarification from the publisher if terms are absent;
@@ -245,15 +260,15 @@ separately from project generalization.
 
 | Task | Evidence and remaining work |
 |---|---|
-| Research UAV-NIDD | Official descriptions reviewed; file/full-paper review pending |
+| Research UAV-NIDD | Official descriptions and user-run initial case profiles recorded; full-paper/provenance review pending |
 | Research SHADOW-GCS | Official lab and publication descriptions reviewed; files pending |
 | Research UAVIDS-2025 | Publisher/author descriptions reviewed; files pending |
-| Official download links | Publisher landing/download routes located; full transfers not tested |
+| Official download links | UAV-NIDD transfer and published-checksum consistency recorded; other transfers unverified |
 | Dataset documentation and papers | Available descriptions reviewed; full-paper review incomplete |
-| Licence/permissions | Unresolved for each public candidate |
-| Normal/attack labels | Publisher categories recorded; exact files/ground truth unverified |
+| Licence/permissions | UAV-NIDD Rights reported CC BY 4.0 by user; other candidates unresolved |
+| Normal/attack labels | UAV-NIDD case values profiled; AP target semantics and ground-truth provenance still pending |
 | Feature/category comparison | Preliminary compatibility analysis recorded; EDA pending |
-| Primary/supplementary selection | SITL chosen as primary; public sources remain conditional |
+| Primary/supplementary selection | SITL remains primary; UAV-NIDD AP preferred for further review, not yet approved for modelling |
 | Selection report | Initial report delivered; final approval gates remain open |
 
 Do not mark all 10 tasks complete or advance to final acquisition/training on

@@ -1,0 +1,68 @@
+{
+  "dataset": "UAV-NIDD",
+  "archive_member": "UAV-NDD CSV/Access Point Case2 Label.xlsx",
+  "sheet": "Sheet1",
+  "candidate_column": 51,
+  "candidate_header": "Normal",
+  "target_semantics_confirmed": false,
+  "profiled_at_utc": "2026-11-25T12:57:06.599551+00:00",
+  "candidate_cells_inspected": 631356,
+  "blank_candidate_cells": 0,
+  "value_counts": [
+    {
+      "value_type": "str",
+      "value": "Normal",
+      "rows": 129541
+    },
+    {
+      "value_type": "str",
+      "value": "Scanning",
+      "rows": 70319
+    },
+    {
+      "value_type": "str",
+      "value": "Reconnaissance",
+      "rows": 40
+    },
+    {
+      "value_type": "str",
+      "value": "De-authentication",
+      "rows": 155564
+    },
+    {
+      "value_type": "str",
+      "value": "Brute-Force",
+      "rows": 172509
+    },
+    {
+      "value_type": "str",
+      "value": "DoS",
+      "rows": 23612
+    },
+    {
+      "value_type": "str",
+      "value": "DDoS",
+      "rows": 31612
+    },
+    {
+      "value_type": "str",
+      "value": "Fake Landing",
+      "rows": 24584
+    },
+    {
+      "value_type": "str",
+      "value": "Replay",
+      "rows": 8525
+    },
+    {
+      "value_type": "str",
+      "value": "Ewil Twin",
+      "rows": 10034
+    },
+    {
+      "value_type": "str",
+      "value": "MITM",
+      "rows": 5016
+    }
+  ]
+}

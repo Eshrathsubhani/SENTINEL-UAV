@@ -1,8 +1,8 @@
 {
-  "registry_version": 1,
+  "registry_version": 2,
   "reviewed_on": "2026-11-25",
   "phase": "6.1",
-  "status": "preliminary_review",
+  "status": "uav_nidd_acquired_initial_case_audit_complete_selection_pending",
   "source_archive_commit": "4ddf66a9f66b8ee3bb2a542130a42cb76bc6cdcc",
   "user_reported_doc_commit": "73a9446",
   "datasets": [
@@ -25,10 +25,76 @@
       "dataset_page": "https://zenodo.org/records/15125851",
       "reported_release": "v1",
       "paper_doi": "10.1109/TNSE.2025.3553442",
-      "license_status": "unverified",
-      "local_files": [],
+      "license_status": "CC-BY-4.0_user_verified_record_rights",
+      "local_files": [
+        {
+          "filename": "UAV-NDD CSV.zip",
+          "bytes": 302353406,
+          "sha256": "edc69bea34bd8fa096a1b69d05b7f6c078e92d2fba03cee19f1999399b7de6b1",
+          "md5": "75bce40dd1d24dce8e4622bb87fb9147",
+          "matches_previously_retrieved_publisher_md5": true,
+          "zip_crc_check": "passed"
+        }
+      ],
       "grouping_status": "unverified",
-      "label_schema_status": "publisher_categories_only"
+      "label_schema_status": "case_values_profiled_AP_target_semantics_still_unconfirmed",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence": {
+        "method": "user_transcribed_publisher_record_rights",
+        "record_url": "https://zenodo.org/records/15125851",
+        "reported_on": "2026-11-25"
+      },
+      "inspection_evidence_origin": "user_executed_commands_and_posted_outputs",
+      "training_ready": false,
+      "preferred_subset": "Access Point Case2",
+      "case_reviews": [
+        {
+          "case": "UAV",
+          "member": "UAV-NDD CSV/UAV-Case1-Label.csv",
+          "disposition": "quarantined_from_training",
+          "expected_fields": 45,
+          "parsed_nonempty_records": 885384,
+          "expected_width_records": 860652,
+          "other_width_parser_fragments": 24732,
+          "ground_truth_loss_count": null,
+          "source_encoding": "unverified",
+          "inspection_decoding": "reversible_Latin1",
+          "findings": [
+            "UTF8_decode_failure",
+            "suspected_binary_or_nonCSV_tail",
+            "expected_width_is_not_semantic_validation"
+          ],
+          "profile": "docs/evidence/phase6/uav_nidd_case1_label_profile.json"
+        },
+        {
+          "case": "GCS",
+          "member": "UAV-NDD CSV/GSC Case3 Label .csv",
+          "actual_format": "xlsx",
+          "header_columns": 85,
+          "class_column": "Class",
+          "class_cells_inspected": 823632,
+          "blank_class_cells": 0,
+          "benign_class_cells": 109,
+          "raw_class_values": 11,
+          "disposition": "attack_heavy_candidate_not_sole_normal_training_source",
+          "profile": "docs/evidence/phase6/uav_nidd_gcs_class_profile.json"
+        },
+        {
+          "case": "Access Point",
+          "member": "UAV-NDD CSV/Access Point Case2 Label.xlsx",
+          "actual_format": "xlsx",
+          "header_columns": 51,
+          "candidate_target_header": "Normal",
+          "candidate_target_column_1_based": 51,
+          "target_semantics_confirmed": false,
+          "candidate_cells_inspected": 631356,
+          "blank_candidate_cells": 0,
+          "normal_candidate_cells": 129541,
+          "raw_candidate_values": 11,
+          "disposition": "preferred_supplementary_candidate_not_training_approved",
+          "profile": "docs/evidence/phase6/uav_nidd_ap_candidate_label_profile.json"
+        }
+      ]
     },
     {
       "id": "shadow_gcs",
@@ -67,5 +133,6 @@
         "duplicate_flows"
       ]
     }
-  ]
+  ],
+  "reviewed_against_user_commit": "5b7edf9"
 }
