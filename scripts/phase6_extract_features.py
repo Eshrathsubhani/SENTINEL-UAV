@@ -43,7 +43,7 @@ def event_key(event):
             event["system_id"], event["component_id"])
 
 
-def load_run(directory):
+def load_run(directory, *, allow_queue_drops=False):
     directory = Path(directory)
     manifest_path = directory / "experiment_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -79,7 +79,7 @@ def load_run(directory):
     events = [json.loads(line) for line in
               (directory / "experiment_events.jsonl").read_text(encoding="utf-8").splitlines()
               if line.strip()]
-    sources, acks, suppressed = {}, {}, set()
+    sources, acks, suppressed, dropped = {}, {}, set(), set()
     previous = -1
     for sequence, event in enumerate(events, 1):
         elapsed = number(event["elapsed_s"])
@@ -107,14 +107,22 @@ def load_run(directory):
             if identity in suppressed or identity not in sources:
                 raise ValueError("Duplicate or unmatched suppression")
             suppressed.add(identity)
+        elif kind == "queue_drop" and allow_queue_drops:
+            identity = event["record_id"]
+            if identity in dropped or identity not in sources or event_key(event) != csv_key(sources[identity]):
+                raise ValueError("Duplicate or unmatched queue drop")
+            dropped.add(identity)
         elif kind in {"queue_drop", "stale_drop", "forwarding_unacknowledged"}:
             raise ValueError("Loss/retry handling requires a separately reviewed export policy")
     if len(sources) != len(lookup) or len({csv_key(r) for r in sources.values()}) != len(lookup):
         raise ValueError("Source linkage is not one-to-one")
-    if set(sources) != set(acks) | suppressed or set(acks) & suppressed:
+    if (set(sources) != set(acks) | suppressed | dropped
+            or len(acks) + len(suppressed) + len(dropped) != len(sources)):
         raise ValueError("Unaccounted or conflicting forwarding outcomes")
     if len(acks) != manifest["forwarding_summary"]["acknowledged"] or len(suppressed) != manifest["suppressed_records"]:
         raise ValueError("Manifest counts disagree with events")
+    if len(dropped) != manifest["forwarding_summary"]["queue_drops"]:
+        raise ValueError("Queue-drop counts disagree with manifest")
     duration = number(run["duration_limit_s"])
     if not events or events[-1]["event"] != "run_finished" or events[-1]["elapsed_s"] < duration:
         raise ValueError("Capture completion does not cover configured duration")
@@ -149,11 +157,11 @@ def windows(observations, duration, width):
                    **dict(zip(FEATURES, values)))
 
 
-def extract(paths, output, width=5.0):
+def extract(paths, output, width=5.0, *, allow_queue_drops=False):
     width = number(width)
     if not 0 < width <= 3600:
         raise ValueError("Window width must be in (0, 3600] seconds")
-    loaded = [load_run(path) for path in paths]
+    loaded = [load_run(path, allow_queue_drops=allow_queue_drops) for path in paths]
     ids = [item[0]["run_id"] for item in loaded]
     if not loaded or len(set(ids)) != len(ids):
         raise ValueError("Provide distinct explicit run directories")
@@ -178,6 +186,7 @@ def extract(paths, output, width=5.0):
         "schema_version": 1, "artifact_role": "diagnostic_features_only",
         "python_version": sys.version.split()[0], "extractor_sha256": digest(Path(__file__)),
         "training_approved": False, "window_width_s": width,
+        "queue_drop_policy": "Explicitly accounted as unsent; not attack labels" if allow_queue_drops else "Reject runs with queue drops",
         "feature_order": list(FEATURES), "units": dict(zip(FEATURES, UNITS)),
         "metadata_columns_excluded_from_models": list(META),
         "missing_policy": "Empty CSV cells mean unavailable; no imputation or scaling fitted",
@@ -193,7 +202,7 @@ def extract(paths, output, width=5.0):
                   "observations_outside_complete_windows": {
                       scope: sum(t >= math.floor(duration / width) * width for t, _, _ in values)
                       for scope, values in observations.items()},
-                  "input_sha256": hashes,
+                  "input_sha256": hashes, "forwarding_summary": m["forwarding_summary"],
                   "trailing_partial_window_s": duration - math.floor(duration / width) * width}
                  for m, duration, observations, hashes in loaded],
     }
@@ -209,9 +218,11 @@ def main():
     parser.add_argument("--run", type=Path, action="append", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--window-seconds", type=float, default=5.0)
+    parser.add_argument("--allow-queue-drops", action="store_true")
     args = parser.parse_args()
     try:
-        counts = extract(args.run, args.output, args.window_seconds)
+        counts = extract(args.run, args.output, args.window_seconds,
+                         allow_queue_drops=args.allow_queue_drops)
     except (ValueError, KeyError, OSError) as error:
         parser.exit(1, f"Export failed: {error}\n")
     print(json.dumps({"result": "PASS", "rows_per_scope": counts,

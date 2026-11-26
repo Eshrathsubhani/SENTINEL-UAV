@@ -32,7 +32,7 @@ class FeaturesTest(unittest.TestCase):
         (root / "run.json").write_text(json.dumps(dict(run_id=run_id, stop_reason="duration_reached",
             duration_limit_s=10, message_counts={"HEARTBEAT": 2, "GLOBAL_POSITION_INT": 1})))
         manifest = dict(run_id=run_id, parent_group_id=parent, status="collector_returned",
-                        forwarding_summary={"acknowledged": 2}, suppressed_records=1,
+                        forwarding_summary={"acknowledged": 2, "queue_drops": 0}, suppressed_records=1,
                         artifacts={name: {"sha256": digest(root/name), "bytes": (root/name).stat().st_size}
                                    for name in ("telemetry.csv", "run.json", "experiment_events.jsonl")})
         (root / "experiment_manifest.json").write_text(json.dumps(manifest))
@@ -127,3 +127,18 @@ class FeaturesTest(unittest.TestCase):
             mp=one/"experiment_manifest.json";m=json.loads(mp.read_text())
             m["artifacts"][p.name]={"sha256":digest(p),"bytes":p.stat().st_size};mp.write_text(json.dumps(m))
             with self.assertRaisesRegex(ValueError, "monotonic"):load_run(one)
+
+    def test_queue_drop_requires_explicit_policy_and_keeps_source(self):
+        with TemporaryDirectory() as d:
+            root=Path(d);one=self.fixture(root/"one")
+            p=one/"experiment_events.jsonl"
+            events=[json.loads(line) for line in p.read_text().splitlines()]
+            next(e for e in events if e["event"]=="forwarding_suppressed")["event"]="queue_drop"
+            p.write_text("".join(json.dumps(e)+"\n" for e in events))
+            mp=one/"experiment_manifest.json";m=json.loads(mp.read_text())
+            m["suppressed_records"]=0;m["forwarding_summary"]["queue_drops"]=1
+            m["artifacts"][p.name]={"sha256":digest(p),"bytes":p.stat().st_size};mp.write_text(json.dumps(m))
+            with self.assertRaises(ValueError):load_run(one)
+            loaded=load_run(one,allow_queue_drops=True)
+            self.assertEqual(len(loaded[2]["source"]),3)
+            self.assertEqual(len(loaded[2]["forwarding_ack"]),2)

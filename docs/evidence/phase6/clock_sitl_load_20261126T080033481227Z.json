@@ -1,0 +1,11 @@
+{
+  "checked_at_utc": "2026-11-26T08:00:33.453050+00:00",
+  "condition": "User-started stationary disarmed SITL; gateways not running",
+  "simulator_revision": "a995235cdae0298b57379faf7df680a5fc405da7",
+  "monotonic_span_s": 60.153140918000645,
+  "utc_span_s": 60.1531400680542,
+  "utc_backward_steps": 0,
+  "largest_interval_difference_s": 0.00010711869435908739,
+  "utc_minus_monotonic_span_s": -8.499464456690475e-07,
+  "limitation": "Simulator-only load; not full gateway-load validation"
+}

@@ -1,0 +1,32 @@
+{
+  "runs": [
+    {
+      "scenario": "normal",
+      "run_id": "2854348c0303488f98a5b9d83579bf39",
+      "stop_reason": "duration_reached",
+      "hashes_and_record_accounting": "PASS",
+      "source_records": 1157,
+      "acknowledged": 1151,
+      "suppressed": 0,
+      "queue_drops": 6,
+      "utc_backward_steps": 0,
+      "elapsed_backward_steps": 0,
+      "utc_minus_monotonic_span_s": -0.00012309246812947094,
+      "training_acceptance": "PENDING_REVIEW"
+    },
+    {
+      "scenario": "interruption",
+      "run_id": "28816745acaf4d6db6d8f314e8bf0fcf",
+      "stop_reason": "duration_reached",
+      "hashes_and_record_accounting": "PASS",
+      "source_records": 1161,
+      "acknowledged": 967,
+      "suppressed": 194,
+      "queue_drops": 0,
+      "utc_backward_steps": 0,
+      "elapsed_backward_steps": 0,
+      "utc_minus_monotonic_span_s": -8.803329728834797e-05,
+      "training_acceptance": "PENDING_REVIEW"
+    }
+  ]
+}
