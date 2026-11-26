@@ -1,0 +1,9 @@
+{
+  "recorded_at_utc": "2026-11-25T21:08:21.560209+00:00",
+  "provenance": "Manually transcribed from completed terminal measurement",
+  "condition": "Idle WSL after Windows synchronization and Ubuntu restart",
+  "utc_backward_steps": 0,
+  "largest_interval_difference_s": 0.0001259104055861826,
+  "utc_minus_monotonic_span_s": 1.4572224245057441e-06,
+  "limitation": "Does not establish stability under simulator load"
+}
