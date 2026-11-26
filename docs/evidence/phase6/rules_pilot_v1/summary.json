@@ -1,0 +1,22 @@
+{
+  "artifact_role": "diagnostic_rule_predictions",
+  "scope": "sender_forwarding_ack_feedback",
+  "rule": "Flag known heartbeat age >= 5 seconds at window end",
+  "threshold_s": 5.0,
+  "threshold_basis": "Existing GCS heartbeat timeout; not tuned on pilot",
+  "window_decision_counts": {
+    "not_flagged": 33,
+    "gap_flagged": 3
+  },
+  "input_sha256": {
+    "feature_contract.json": "383094ecece9804e28539bf0d1b1c99cc2e76e3e7d86b37925f5c3d66045cd2b",
+    "forwarding_ack_features.csv": "ce93277f5033c76149f553f34c791239e7df5b9bf0ce1e5225f32270ba24ce6e"
+  },
+  "limitations": [
+    "Missing heartbeat history is unknown, not normal.",
+    "Not flagged does not establish normal or attack-free operation.",
+    "Flagged windows are not deduplicated incident counts.",
+    "Sender ACK time is not exact GCS receipt time.",
+    "No ground-truth evaluation, model training or training approval."
+  ]
+}
