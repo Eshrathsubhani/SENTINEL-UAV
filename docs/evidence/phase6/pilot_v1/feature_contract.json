@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "artifact_role": "diagnostic_features_only",
+  "python_version": "3.12.2",
+  "extractor_sha256": "d74f4f1404b3b9fde89847d2a0da6cb5336cc09aa41db950f55eb02b73c22b17",
+  "training_approved": false,
+  "window_width_s": 5.0,
+  "feature_order": [
+    "message_count",
+    "message_rate_hz",
+    "heartbeat_count",
+    "position_count",
+    "system_status_count",
+    "battery_status_count",
+    "source_frame_bytes_mean",
+    "interarrival_mean_s",
+    "interarrival_max_s",
+    "heartbeat_age_at_end_s"
+  ],
+  "units": {
+    "message_count": "count",
+    "message_rate_hz": "messages/s",
+    "heartbeat_count": "count",
+    "position_count": "count",
+    "system_status_count": "count",
+    "battery_status_count": "count",
+    "source_frame_bytes_mean": "bytes",
+    "interarrival_mean_s": "seconds",
+    "interarrival_max_s": "seconds",
+    "heartbeat_age_at_end_s": "seconds"
+  },
+  "metadata_columns_excluded_from_models": [
+    "run_id",
+    "parent_group_id",
+    "window_index",
+    "window_start_s",
+    "window_end_s"
+  ],
+  "missing_policy": "Empty CSV cells mean unavailable; no imputation or scaling fitted",
+  "window_policy": "Complete half-open windows from run elapsed zero; empty windows retained",
+  "scope_policy": "Separate observation scopes; never pool them into a single comparison",
+  "forwarding_ack_boundary": "Sender ACK receipt, not exact GCS arrival or persistence time",
+  "source_frame_bytes_mean": "Original MAVLink frame size, not TLS or JSON byte count",
+  "interarrival_policy": "Adjacent observations inside each window only",
+  "grouping_policy": "All windows/derivatives of a parent group stay in one split",
+  "ground_truth_policy": "No labels generated; intervention/scenario metadata excluded from features",
+  "rows_per_scope": {
+    "source": 36,
+    "forwarding_ack": 36
+  },
+  "runs": [
+    {
+      "run_id": "a3c8e0a7f6484d1b9caf45ed6385e8a3",
+      "parent_group_id": "session-PtA9xOaW",
+      "observations_outside_complete_windows": {
+        "source": 0,
+        "forwarding_ack": 3
+      },
+      "input_sha256": {
+        "experiment_manifest.json": "cfb6ea116007751320b1fd07f79b767fc109c65346479b91dd362b92ea3bb886",
+        "telemetry.csv": "5286620b9c1511700077c75fe2de603829dfdc6d645828f628eaeb52e5d76f0d",
+        "run.json": "aa4d60a6d5754d51264d4e45a5b94472d943c11bbd7e3e1c2bfd8cdfd5945943",
+        "experiment_events.jsonl": "75b5cf50612ede257a0a20b40f0062d96a3e735b7c223236f2b321081e7f53d7"
+      },
+      "trailing_partial_window_s": 0.0
+    },
+    {
+      "run_id": "78a05f5fca2e4236a96221b5259cce70",
+      "parent_group_id": "session-PtA9xOaW",
+      "observations_outside_complete_windows": {
+        "source": 1,
+        "forwarding_ack": 2
+      },
+      "input_sha256": {
+        "experiment_manifest.json": "3819266c4733f03c7bd274724053d732c21abb4c27ec780e5cef840bb40eae1a",
+        "telemetry.csv": "e44a2196b294482b77e6bb968e002970771d0589005b35751269ff5cb19806b7",
+        "run.json": "e26ae3bcb075c220f25501971eae84a264ea27feaf898f14d8972afd31661673",
+        "experiment_events.jsonl": "53f65b37ad2bfdac49c8231cb274531d2b55ef8999b8774f0612a50ab7f4ebbf"
+      },
+      "trailing_partial_window_s": 0.0
+    }
+  ]
+}
